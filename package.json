@@ -3,11 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3001",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
-    "cf-build": "npx @cloudflare/next-on-pages"
+    "lint": "eslint"
   },
   "dependencies": {
     "@auth0/nextjs-auth0": "^4.16.0",

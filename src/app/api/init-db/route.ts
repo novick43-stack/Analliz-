@@ -44,28 +44,16 @@ export async function GET() {
             )
         `;
 
-        // Create pending codes table (store authorization codes temporarily
-        // when the partner redirects to our callback but the user has no
-        // active session yet). After the user logs in we will claim and
-        // exchange the code for a token and persist the connection.
-        await sql`
-            CREATE TABLE IF NOT EXISTS tiendanube_pending (
-                id SERIAL PRIMARY KEY,
-                code VARCHAR(500) NOT NULL,
-                state VARCHAR(255),
-                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-            )
-        `;
 
-        return NextResponse.json({ 
-            success: true, 
-            message: "Database tables initialized successfully" 
+        return NextResponse.json({
+            success: true,
+            message: "Database tables initialized successfully"
         });
     } catch (error: any) {
         console.error("Database initialization error:", error);
-        return NextResponse.json({ 
-            success: false, 
-            error: error.message 
+        return NextResponse.json({
+            success: false,
+            error: error.message
         }, { status: 500 });
     }
 }

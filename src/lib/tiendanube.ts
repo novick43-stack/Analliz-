@@ -25,23 +25,14 @@ export async function initializeTiendaNubeTable() {
 }
 
 export function getTiendaNubeAuthUrl(state: string) {
-    // Tienda Nube expects the OAuth authorize call to redirect back to the
-    // partners authentication URL. Using the partners authentication URL as
-    // the redirect_uri is the recommended flow for partner applications.
-    // The partners URL will then complete installation and forward to the
-    // app's configured callback when appropriate.
-    // For partner-installed apps, direct the user to the partners
-    // authentication/installation page. After the merchant installs the
-    // app there, Tienda Nube (partners) will redirect to the callback URL
-    // you configured in the Partners panel (e.g. http://localhost:3001/api/tiendanube/callback).
-    const PARTNER_INSTALL_URL = `https://partners.tiendanube.com/applications/authentication/${TIENDANUBE_APP_ID}`;
+    // The standard OAuth authorization URL for Tienda Nube apps.
+    // Replace (app_id) with your actual APP ID.
+    const AUTH_URL = `https://www.tiendanube.com/apps/${TIENDANUBE_APP_ID}/authorize`;
 
-    // Optionally include the state in the partners URL so we can validate it
-    // after the redirect back to our callback.
-    const partnerUrl = new URL(PARTNER_INSTALL_URL);
-    partnerUrl.searchParams.set('state', state);
+    const url = new URL(AUTH_URL);
+    url.searchParams.set('state', state);
 
-    return partnerUrl.toString();
+    return url.toString();
 }
 
 export async function exchangeCodeForToken(code: string) {

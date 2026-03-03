@@ -8,37 +8,12 @@ export default function TiendaNubeSetupPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
-        // Check if there's a state parameter from callback or a pending id
-        const params = new URLSearchParams(window.location.search);
-        if (params.get('connected') === 'true') {
-            router.push('/dashboard');
-            return;
-        }
-
-        // If we were redirected to login earlier with a pending id, claim it
-        const pending = params.get('pending');
-        if (pending) {
-            (async () => {
-                setIsLoading(true);
-                try {
-                    const resp = await fetch(`/api/tiendanube/claim?pending=${pending}`, {
-                        method: 'POST',
-                    });
-                    if (resp.ok) {
-                        router.push('/dashboard');
-                        return;
-                    }
-                    const data = await resp.json();
-                    setError(data?.error || 'Failed to claim connection');
-                } catch (err) {
-                    setError(err instanceof Error ? err.message : String(err));
-                } finally {
-                    setIsLoading(false);
-                }
-            })();
-        }
-    }, [router]);
+    // Check if there's a state parameter from callback
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('connected') === 'true') {
+        router.push('/dashboard');
+        return;
+    }
 
     const handleConnectTiendaNube = async () => {
         try {
@@ -47,19 +22,19 @@ export default function TiendaNubeSetupPage() {
 
             // Generate a random state for CSRF protection
             const state = Math.random().toString(36).substring(7);
-            
+
             // Store state in session storage for validation
             sessionStorage.setItem('tiendanube_state', state);
 
             // Get the authorization URL from the backend
             const response = await fetch(`/api/tiendanube/auth?state=${state}`);
-            
+
             if (!response.ok) {
                 throw new Error('Failed to get authorization URL');
             }
 
             const data = await response.json();
-            
+
             // Redirect to Tienda Nube OAuth
             window.location.href = data.authUrl;
         } catch (err) {

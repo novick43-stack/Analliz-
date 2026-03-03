@@ -28,18 +28,10 @@ export async function GET(request: NextRequest) {
         // Get current session
         const session = await auth0.getSession();
         if (!session || !session.user) {
-            // No session: store the code in a pending table and redirect the
-            // user to login. After login they will be able to claim the code.
-            const inserted = await sql`
-                INSERT INTO tiendanube_pending (code, state) VALUES (${code}, ${state}) RETURNING id
-            `;
-            const pendingId = inserted[0]?.id;
-
-            // Redirect to login and include pending id so the app can resume
-            // the flow after authentication.
-            const redirectUrl = new URL(`/auth/login`, request.url);
-            if (pendingId) redirectUrl.searchParams.set('pending', String(pendingId));
-            return NextResponse.redirect(redirectUrl);
+            // No session: Redirect to login with a message
+            return NextResponse.redirect(
+                new URL(`/auth/login?error=session_required`, request.url)
+            );
         }
 
         // Exchange code for token
@@ -63,9 +55,9 @@ export async function GET(request: NextRequest) {
         await saveTiendaNubeConnection(
             userId,
             session.user.sub,
-            tokenData.user.id.toString(),
+            tokenData.user_id.toString(),
             tokenData.access_token,
-            tokenData.user.name
+            "" // tokenData usually doesn't include name in this flow, using empty string
         );
 
         // Redirect to dashboard with success message
