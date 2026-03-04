@@ -1,6 +1,14 @@
 import Link from "next/link";
+import { auth0 } from "@/lib/auth0";
+import { redirect } from "next/navigation";
 
-export default function Home() {
+export default async function Home() {
+  const session = await auth0.getSession();
+
+  if (session) {
+    redirect("/dashboard");
+  }
+
   return (
     <div className="min-h-screen bg-[conic-gradient(at_top_right,_var(--tw-gradient-stops))] from-blue-50 via-white to-blue-50 flex flex-col items-center justify-center p-8">
       <main className="max-w-md w-full bg-white/70 backdrop-blur-xl p-10 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white flex flex-col items-center text-center gap-8 transition-transform hover:-translate-y-1 duration-300">

@@ -8,11 +8,27 @@ export default function TiendaNubeSetupPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    // If we're already connected, go to dashboard
+    useEffect(() => {
+        const checkConnection = async () => {
+            try {
+                const res = await fetch('/api/tiendanube/status');
+                const data = await res.json();
+                if (data.connected) {
+                    router.push('/dashboard');
+                }
+            } catch (e) {
+                console.error("Error checking connection", e);
+            }
+        };
+        checkConnection();
+    }, [router]);
+
     // Check if there's a state parameter from callback
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('connected') === 'true') {
+    const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+    if (params?.get('connected') === 'true') {
         router.push('/dashboard');
-        return;
+        return null;
     }
 
     const handleConnectTiendaNube = async () => {
