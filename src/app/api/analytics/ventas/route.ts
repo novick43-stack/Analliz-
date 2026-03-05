@@ -110,65 +110,69 @@ export async function GET(request: Request) {
         ` : [null];
 
         // 7. Provinces (Geographic analysis)
-        const salesByProvince = await sql`
-            SELECT 
-                COALESCE(province, 'Sin informar') as province,
-                COUNT(id) as count,
-                SUM(total) as revenue
-            FROM tn_orders
-            WHERE user_id = ${userId}
-            ${dateFilter}
-            GROUP BY province
-            ORDER BY count DESC
-        `;
+        let salesByProvince: any[] = [];
+        try {
+            salesByProvince = await sql`
+                SELECT 
+                    COALESCE(province, 'Sin informar') as province,
+                    COUNT(id) as count,
+                    SUM(total) as revenue
+                FROM tn_orders
+                WHERE user_id = ${userId}
+                ${dateFilter}
+                GROUP BY province
+                ORDER BY count DESC
+            `;
+        } catch (e) {
+            console.error("Province query failed (likely missing column):", e);
+        }
 
         // 8. Age Group Analysis (DNI estimation)
-        // Estimation table for Argentine DNIs:
-        // 45M+ -> Gen Z (Born ~2003+)
-        // 35M-45M -> Late Millennials (Born ~1990-2003)
-        // 25M-35M -> Early Millennials (Born ~1976-1990)
-        // 15M-25M -> Gen X (Born ~1965-1976)
-        // <15M -> Boomers / Older (Born before 1965)
+        let salesByAge: any[] = [];
+        let averageAge = 0;
+        try {
+            // Helper to estimate birth year and age from DNI
+            const ordersWithDni = await sql`
+                SELECT customer_identification as dni
+                FROM tn_orders
+                WHERE user_id = ${userId}
+                AND customer_identification ~ '^[0-9]+$'
+                ${dateFilter}
+            `;
 
-        // Helper to estimate birth year and age from DNI
-        const ordersWithDni = await sql`
-            SELECT customer_identification as dni
-            FROM tn_orders
-            WHERE user_id = ${userId}
-            AND customer_identification ~ '^[0-9]+$'
-            ${dateFilter}
-        `;
+            const currentYear = new Date().getFullYear();
+            const ageCounts: Record<number, number> = {};
+            let totalAges = 0;
+            let countAges = 0;
 
-        const currentYear = new Date().getFullYear();
-        const ageCounts: Record<number, number> = {};
-        let totalAges = 0;
-        let countAges = 0;
+            ordersWithDni.forEach((o: any) => {
+                const dniNum = parseInt(o.dni);
+                let birthYear = 0;
 
-        ordersWithDni.forEach((o: any) => {
-            const dniNum = parseInt(o.dni);
-            let birthYear = 0;
+                // Heuristic for AR DNI roughly translating to birth year
+                if (dniNum > 45000000) birthYear = 2003 + (dniNum - 45000000) / 1000000;
+                else if (dniNum > 35000000) birthYear = 1990 + (dniNum - 35000000) / (45 - 35) * 13;
+                else if (dniNum > 25000000) birthYear = 1976 + (dniNum - 25000000) / (35 - 25) * 14;
+                else if (dniNum > 15000000) birthYear = 1965 + (dniNum - 15000000) / (25 - 15) * 11;
+                else if (dniNum > 5000000) birthYear = 1945 + (dniNum - 5000000) / (15 - 5) * 20;
+                else birthYear = 1930;
 
-            // Heuristic for AR DNI roughly translating to birth year
-            if (dniNum > 45000000) birthYear = 2003 + (dniNum - 45000000) / 1000000;
-            else if (dniNum > 35000000) birthYear = 1990 + (dniNum - 35000000) / (45 - 35) * 13;
-            else if (dniNum > 25000000) birthYear = 1976 + (dniNum - 25000000) / (35 - 25) * 14;
-            else if (dniNum > 15000000) birthYear = 1965 + (dniNum - 15000000) / (25 - 15) * 11;
-            else if (dniNum > 5000000) birthYear = 1945 + (dniNum - 5000000) / (15 - 5) * 20;
-            else birthYear = 1930;
+                const age = Math.round(currentYear - birthYear);
+                if (age > 10 && age < 100) {
+                    ageCounts[age] = (ageCounts[age] || 0) + 1;
+                    totalAges += age;
+                    countAges++;
+                }
+            });
 
-            const age = Math.round(currentYear - birthYear);
-            if (age > 10 && age < 100) {
-                ageCounts[age] = (ageCounts[age] || 0) + 1;
-                totalAges += age;
-                countAges++;
-            }
-        });
+            salesByAge = Object.entries(ageCounts)
+                .map(([age, count]) => ({ age: parseInt(age), count }))
+                .sort((a, b) => a.age - b.age);
 
-        const salesByAge = Object.entries(ageCounts)
-            .map(([age, count]) => ({ age: parseInt(age), count }))
-            .sort((a, b) => a.age - b.age);
-
-        const averageAge = countAges > 0 ? Math.round(totalAges / countAges) : 0;
+            averageAge = countAges > 0 ? Math.round(totalAges / countAges) : 0;
+        } catch (e) {
+            console.error("Age query failed (likely missing column):", e);
+        }
 
         return NextResponse.json({
             revenueOverTime,

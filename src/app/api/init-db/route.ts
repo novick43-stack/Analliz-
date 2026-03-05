@@ -1,8 +1,11 @@
 import { sql } from "@/lib/db";
 import { NextResponse } from "next/server";
+import { initializeTiendaNubeSyncTables } from "@/lib/tiendanube";
 
 export async function GET() {
     try {
+        // ... previous basic tables ...
+        await initializeTiendaNubeSyncTables();
         // Create users table
         await sql`
             CREATE TABLE IF NOT EXISTS users (
