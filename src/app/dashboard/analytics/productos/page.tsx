@@ -9,6 +9,7 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import DateRangePicker from "@/components/analytics/DateRangePicker";
 import { Package, Smartphone, Tag, RefreshCcw, LayoutGrid, AlertCircle, TrendingUp, DollarSign, Clock, Activity, Calendar } from "lucide-react";
+import Skeleton from "@/components/ui/Skeleton";
 
 export default function ProductosAnalyticsPage() {
     const [data, setData] = useState<any>(null);
@@ -73,22 +74,32 @@ export default function ProductosAnalyticsPage() {
                         </div>
                     </div>
                     <div className="h-[300px] w-full mt-4">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={data?.productsSoldByDay || []} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                <XAxis
-                                    dataKey="date"
-                                    tickFormatter={(str) => str ? format(new Date(str), "d/M", { locale: es }) : ""}
-                                    axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 800, fill: '#94a3b8' }}
-                                />
-                                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 800, fill: '#94a3b8' }} />
-                                <Tooltip
-                                    contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 20px 40px rgba(0,0,0,0.1)' }}
-                                    cursor={{ fill: '#f1f5f9', opacity: 0.4 }}
-                                />
-                                <Bar dataKey="count" name="Vendidos" fill="#7ed4d4" radius={[4, 4, 0, 0]} />
-                            </BarChart>
-                        </ResponsiveContainer>
+                        {loading ? (
+                            <div className="w-full h-full flex flex-col gap-4">
+                                <div className="flex-1 flex items-end gap-2 px-4">
+                                    {[...Array(12)].map((_, i) => (
+                                        <Skeleton key={i} className="flex-1" style={{ height: `${Math.random() * 60 + 20}%` }} />
+                                    ))}
+                                </div>
+                            </div>
+                        ) : (
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={data?.productsSoldByDay || []} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                    <XAxis
+                                        dataKey="date"
+                                        tickFormatter={(str) => str ? format(new Date(str), "d/M", { locale: es }) : ""}
+                                        axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 800, fill: '#94a3b8' }}
+                                    />
+                                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 800, fill: '#94a3b8' }} />
+                                    <Tooltip
+                                        contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 20px 40px rgba(0,0,0,0.1)' }}
+                                        cursor={{ fill: '#f1f5f9', opacity: 0.4 }}
+                                    />
+                                    <Bar dataKey="count" name="Vendidos" fill="#7ed4d4" radius={[4, 4, 0, 0]} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        )}
                     </div>
                 </div>
 
@@ -100,22 +111,17 @@ export default function ProductosAnalyticsPage() {
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
-                        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-                            <p className="text-2xl font-black text-gray-900">{Math.round(data?.summary?.totalSold || 0)}</p>
-                            <p className="text-[8px] font-bold text-gray-400 uppercase leading-tight mt-1">productos vendidos</p>
-                        </div>
-                        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-                            <p className="text-2xl font-black text-gray-900">{(data?.summary?.soldPerDay || 0).toFixed(0)}</p>
-                            <p className="text-[8px] font-bold text-gray-400 uppercase leading-tight mt-1">productos por día</p>
-                        </div>
-                        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-                            <p className="text-2xl font-black text-gray-900">{(data?.summary?.soldPerOrder || 0).toFixed(1)}</p>
-                            <p className="text-[8px] font-bold text-gray-400 uppercase mt-1">productos por venta</p>
-                        </div>
-                        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-                            <p className="text-lg font-black text-gray-900 truncate">{formatCurrency(data?.summary?.avgPricePerItem)}</p>
-                            <p className="text-[7px] font-bold text-gray-400 uppercase mt-1 leading-tight">por producto (promedio)</p>
-                        </div>
+                        {[
+                            { val: Math.round(data?.summary?.totalSold || 0), label: "productos vendidos" },
+                            { val: (data?.summary?.soldPerDay || 0).toFixed(0), label: "productos por día" },
+                            { val: (data?.summary?.soldPerOrder || 0).toFixed(1), label: "productos por venta" },
+                            { val: formatCurrency(data?.summary?.avgPricePerItem), label: "por producto (promedio)", isPrice: true }
+                        ].map((kpi, i) => (
+                            <div key={i} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col justify-between">
+                                {loading ? <Skeleton className="w-12 h-6" /> : <p className={`${kpi.isPrice ? 'text-lg' : 'text-2xl'} font-black text-gray-900 truncate`}>{kpi.val}</p>}
+                                <p className="text-[8px] font-bold text-gray-400 uppercase leading-tight mt-1">{kpi.label}</p>
+                            </div>
+                        ))}
                     </div>
                 </div>
             </div>
@@ -151,7 +157,7 @@ export default function ProductosAnalyticsPage() {
                         </div>
                         <div>
                             <p className="text-gray-400 font-black text-[10px] uppercase tracking-[0.2em] mb-1">{kpi.label}</p>
-                            <h3 className="text-4xl font-black text-gray-900 tracking-tighter">{loading ? "..." : kpi.val}</h3>
+                            {loading ? <Skeleton className="w-32 h-10" /> : <h3 className="text-4xl font-black text-gray-900 tracking-tighter">{kpi.val}</h3>}
                             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-2">{kpi.desc}</p>
                         </div>
                     </div>
@@ -168,27 +174,29 @@ export default function ProductosAnalyticsPage() {
                 </div>
 
                 <div className="h-[500px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <ComposedChart data={data?.paretoData || []}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                            <XAxis
-                                dataKey="name"
-                                hide
-                            />
-                            <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 800 }} tickFormatter={(v) => `$${v / 1000}k`} />
-                            <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fill: '#8b5cf6', fontSize: 10, fontWeight: 800 }} tickFormatter={(v) => `${v}%`} />
-                            <Tooltip
-                                contentStyle={{ borderRadius: '24px', border: 'none', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.2)' }}
-                                itemStyle={{ fontWeight: 800 }}
-                            />
-                            <Bar yAxisId="left" dataKey="total_revenue" radius={[12, 12, 0, 0]} barSize={40}>
-                                {(data?.paretoData || []).map((_: any, i: number) => (
-                                    <Cell key={i} fill={i < 10 ? '#3b82f6' : '#cbd5e1'} />
-                                ))}
-                            </Bar>
-                            <Line yAxisId="right" type="monotone" dataKey="cumulative_percentage" stroke="#8b5cf6" strokeWidth={4} dot={{ fill: '#8b5cf6', r: 4 }} />
-                        </ComposedChart>
-                    </ResponsiveContainer>
+                    {loading ? <Skeleton className="w-full h-full" /> : (
+                        <ResponsiveContainer width="100%" height="100%">
+                            <ComposedChart data={data?.paretoData || []}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                <XAxis
+                                    dataKey="name"
+                                    hide
+                                />
+                                <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 800 }} tickFormatter={(v) => `$${v / 1000}k`} />
+                                <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fill: '#8b5cf6', fontSize: 10, fontWeight: 800 }} tickFormatter={(v) => `${v}%`} />
+                                <Tooltip
+                                    contentStyle={{ borderRadius: '24px', border: 'none', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.2)' }}
+                                    itemStyle={{ fontWeight: 800 }}
+                                />
+                                <Bar yAxisId="left" dataKey="total_revenue" radius={[12, 12, 0, 0]} barSize={40}>
+                                    {(data?.paretoData || []).map((_: any, i: number) => (
+                                        <Cell key={i} fill={i < 10 ? '#3b82f6' : '#cbd5e1'} />
+                                    ))}
+                                </Bar>
+                                <Line yAxisId="right" type="monotone" dataKey="cumulative_percentage" stroke="#8b5cf6" strokeWidth={4} dot={{ fill: '#8b5cf6', r: 4 }} />
+                            </ComposedChart>
+                        </ResponsiveContainer>
+                    )}
                 </div>
             </div>
 
@@ -207,19 +215,21 @@ export default function ProductosAnalyticsPage() {
                     </div>
 
                     <div className="h-[400px] w-full relative z-10">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <Treemap
-                                data={data?.categoryTreemap || []}
-                                dataKey="value"
-                                stroke="#111827"
-                                fill="#3b82f6"
-                            >
-                                <Tooltip
-                                    contentStyle={{ background: '#111827', border: 'none', borderRadius: '16px' }}
-                                    formatter={(v: any) => formatCurrency(v)}
-                                />
-                            </Treemap>
-                        </ResponsiveContainer>
+                        {loading ? <Skeleton className="w-full h-full" /> : (
+                            <ResponsiveContainer width="100%" height="100%">
+                                <Treemap
+                                    data={data?.categoryTreemap || []}
+                                    dataKey="value"
+                                    stroke="#111827"
+                                    fill="#3b82f6"
+                                >
+                                    <Tooltip
+                                        contentStyle={{ background: '#111827', border: 'none', borderRadius: '16px' }}
+                                        formatter={(v: any) => formatCurrency(v)}
+                                    />
+                                </Treemap>
+                            </ResponsiveContainer>
+                        )}
                     </div>
                 </div>
 
@@ -236,27 +246,29 @@ export default function ProductosAnalyticsPage() {
                     </div>
 
                     <div className="flex flex-col gap-6 flex-1">
-                        {data?.alerts?.length > 0 ? (
-                            data.alerts.map((alert: any, i: number) => (
-                                <div key={i} className="flex flex-col gap-2 p-6 rounded-3xl bg-white/10 border border-white/10">
-                                    <span className="text-xs font-black uppercase truncate">{alert.name}</span>
-                                    <div className="flex justify-between items-end">
-                                        <div>
-                                            <p className="text-2xl font-black">{Math.round(alert.days_left)}</p>
-                                            <p className="text-[10px] font-bold text-rose-200 uppercase tracking-widest">días restantes</p>
-                                        </div>
-                                        <div className="text-right">
-                                            <p className="text-xs font-bold">{alert.stock} unidades</p>
-                                            <p className="text-[10px] font-bold text-rose-200 uppercase tracking-widest">Stock actual</p>
+                        {loading ? <Skeleton className="w-full h-32 rounded-3xl" /> : (
+                            data?.alerts?.length > 0 ? (
+                                data.alerts.map((alert: any, i: number) => (
+                                    <div key={i} className="flex flex-col gap-2 p-6 rounded-3xl bg-white/10 border border-white/10">
+                                        <span className="text-xs font-black uppercase truncate">{alert.name}</span>
+                                        <div className="flex justify-between items-end">
+                                            <div>
+                                                <p className="text-2xl font-black">{Math.round(alert.days_left)}</p>
+                                                <p className="text-[10px] font-bold text-rose-200 uppercase tracking-widest">días restantes</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-xs font-bold">{alert.stock} unidades</p>
+                                                <p className="text-[10px] font-bold text-rose-200 uppercase tracking-widest">Stock actual</p>
+                                            </div>
                                         </div>
                                     </div>
+                                ))
+                            ) : (
+                                <div className="flex-1 flex flex-col items-center justify-center opacity-50">
+                                    <Package className="w-16 h-16 mb-4" />
+                                    <p className="text-sm font-black uppercase italic">Todo bajo control</p>
                                 </div>
-                            ))
-                        ) : (
-                            <div className="flex-1 flex flex-col items-center justify-center opacity-50">
-                                <Package className="w-16 h-16 mb-4" />
-                                <p className="text-sm font-black uppercase italic">Todo bajo control</p>
-                            </div>
+                            )
                         )}
                     </div>
 

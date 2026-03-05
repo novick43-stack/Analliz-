@@ -9,6 +9,7 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import DateRangePicker from "@/components/analytics/DateRangePicker";
 import { Users, UserPlus, Heart, RefreshCcw, Mail, DollarSign, Target, MapPin, Zap, TrendingUp, ShoppingBag, Package, Calendar } from "lucide-react";
+import Skeleton from "@/components/ui/Skeleton";
 
 export default function ClientesAnalyticsPage() {
     const [data, setData] = useState<any>(null);
@@ -65,7 +66,7 @@ export default function ClientesAnalyticsPage() {
             {/* Top Row: Trend & Period Summary */}
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                 {/* Main Trend Chart */}
-                <div className="lg:col-span-3 bg-white rounded-[2.5rem] p-8 border border-gray-100 shadow-sm flex flex-col gap-6">
+                <div className="lg:col-span-3 bg-white rounded-[1.5rem] p-8 border border-gray-100 shadow-sm flex flex-col gap-6">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-xl bg-pink-50 text-pink-600 flex items-center justify-center text-xl">
@@ -75,51 +76,56 @@ export default function ClientesAnalyticsPage() {
                         </div>
                     </div>
                     <div className="h-[300px] w-full mt-4">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={data?.trend || []} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                <XAxis
-                                    dataKey="date"
-                                    tickFormatter={(str) => str ? format(new Date(str), "d/M", { locale: es }) : ""}
-                                    axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 800, fill: '#94a3b8' }}
-                                />
-                                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 800, fill: '#94a3b8' }} />
-                                <Tooltip
-                                    contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 20px 40px rgba(0,0,0,0.1)' }}
-                                    cursor={{ fill: '#f8fafc' }}
-                                />
-                                <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase' }} />
-                                <Bar dataKey="nuevos" name="Nuevos" fill="#81e6d9" radius={[4, 4, 0, 0]} />
-                                <Bar dataKey="recurrentes" name="Recurrentes" fill="#f6ad55" radius={[4, 4, 0, 0]} />
-                            </BarChart>
-                        </ResponsiveContainer>
+                        {loading ? (
+                            <div className="w-full h-full flex flex-col gap-4">
+                                <div className="flex-1 flex items-end gap-2 px-4">
+                                    {[...Array(12)].map((_, i) => (
+                                        <Skeleton key={i} className="flex-1" style={{ height: `${Math.random() * 60 + 20}%` }} />
+                                    ))}
+                                </div>
+                            </div>
+                        ) : (
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={data?.trend || []} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                    <XAxis
+                                        dataKey="date"
+                                        tickFormatter={(str) => str ? format(new Date(str), "d/M", { locale: es }) : ""}
+                                        axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 800, fill: '#94a3b8' }}
+                                    />
+                                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 800, fill: '#94a3b8' }} />
+                                    <Tooltip
+                                        contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 20px 40px rgba(0,0,0,0.1)' }}
+                                        cursor={{ fill: '#f8fafc' }}
+                                    />
+                                    <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase' }} />
+                                    <Bar dataKey="nuevos" name="Nuevos" fill="#81e6d9" radius={[4, 4, 0, 0]} />
+                                    <Bar dataKey="recurrentes" name="Recurrentes" fill="#f6ad55" radius={[4, 4, 0, 0]} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        )}
                     </div>
                 </div>
 
                 {/* Resumen del Período KPI Grid */}
-                <div className="lg:col-span-1 bg-[#f0f9f9] rounded-[2.5rem] p-6 border border-[#e0f2f2] flex flex-col gap-6">
+                <div className="lg:col-span-1 bg-[#f0f9f9] rounded-[1.5rem] p-6 border border-[#e0f2f2] flex flex-col gap-6">
                     <div className="flex items-center gap-2 mb-2">
                         <Calendar className="w-4 h-4 text-gray-700" />
                         <h3 className="text-sm font-black text-gray-800 uppercase italic">Resumen del período</h3>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
-                        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-                            <p className="text-2xl font-black text-gray-900">{data?.summary?.new_orders || 0}</p>
-                            <p className="text-[8px] font-bold text-gray-400 uppercase leading-tight mt-1">compras - clientes nuevos</p>
-                        </div>
-                        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-                            <p className="text-2xl font-black text-gray-900">{data?.summary?.recurrent_orders || 0}</p>
-                            <p className="text-[8px] font-bold text-gray-400 uppercase leading-tight mt-1">compras - clientes recurrentes</p>
-                        </div>
-                        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-                            <p className="text-2xl font-black text-gray-900">{newPercent}%</p>
-                            <p className="text-[8px] font-bold text-gray-400 uppercase mt-1">nuevos</p>
-                        </div>
-                        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-                            <p className="text-2xl font-black text-gray-900">{recurrentPercent}%</p>
-                            <p className="text-[8px] font-bold text-gray-400 uppercase mt-1">recurrentes</p>
-                        </div>
+                        {[
+                            { val: data?.summary?.new_orders || 0, label: "compras - clientes nuevos" },
+                            { val: data?.summary?.recurrent_orders || 0, label: "compras - clientes recurrentes" },
+                            { val: `${newPercent}%`, label: "nuevos" },
+                            { val: `${recurrentPercent}%`, label: "recurrentes" }
+                        ].map((kpi, i) => (
+                            <div key={i} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                                {loading ? <Skeleton className="w-12 h-6" /> : <p className="text-2xl font-black text-gray-900">{kpi.val}</p>}
+                                <p className="text-[8px] font-bold text-gray-400 uppercase leading-tight mt-1">{kpi.label}</p>
+                            </div>
+                        ))}
                     </div>
                 </div>
             </div>
@@ -127,7 +133,7 @@ export default function ClientesAnalyticsPage() {
             {/* Bottom Row: Distribution Charts */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Orders Distribution */}
-                <div className="bg-white rounded-[2.5rem] p-8 border border-gray-100 shadow-sm flex flex-col gap-6">
+                <div className="bg-white rounded-[1.5rem] p-8 border border-gray-100 shadow-sm flex flex-col gap-6">
                     <div>
                         <div className="flex items-center gap-2 mb-1">
                             <ShoppingBag className="w-4 h-4 text-gray-400" />
@@ -137,32 +143,36 @@ export default function ClientesAnalyticsPage() {
                     </div>
 
                     <div className="h-[250px] flex items-center justify-center relative">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                                <Pie
-                                    data={data?.frequencyDist || []}
-                                    dataKey="value"
-                                    nameKey="label"
-                                    innerRadius={60}
-                                    outerRadius={80}
-                                    paddingAngle={5}
-                                >
-                                    {(data?.frequencyDist || []).map((_: any, i: number) => (
-                                        <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                                    ))}
-                                </Pie>
-                                <Tooltip />
-                            </PieChart>
-                        </ResponsiveContainer>
-                        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                            <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Frecuencia</span>
-                            <span className="text-lg font-black text-gray-900">Orders</span>
-                        </div>
+                        {loading ? <Skeleton variant="circle" className="w-40 h-40" /> : (
+                            <>
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart>
+                                        <Pie
+                                            data={data?.frequencyDist || []}
+                                            dataKey="value"
+                                            nameKey="label"
+                                            innerRadius={60}
+                                            outerRadius={80}
+                                            paddingAngle={5}
+                                        >
+                                            {(data?.frequencyDist || []).map((_: any, i: number) => (
+                                                <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                    <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Frecuencia</span>
+                                    <span className="text-lg font-black text-gray-900">Orders</span>
+                                </div>
+                            </>
+                        )}
                     </div>
                 </div>
 
                 {/* Product Variety Distribution */}
-                <div className="bg-white rounded-[2.5rem] p-8 border border-gray-100 shadow-sm flex flex-col gap-6">
+                <div className="bg-white rounded-[1.5rem] p-8 border border-gray-100 shadow-sm flex flex-col gap-6">
                     <div>
                         <div className="flex items-center gap-2 mb-1">
                             <Package className="w-4 h-4 text-gray-400" />
@@ -172,20 +182,22 @@ export default function ClientesAnalyticsPage() {
                     </div>
 
                     <div className="h-[250px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={data?.varietyDist || []}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 800, fill: '#94a3b8' }} />
-                                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 800, fill: '#94a3b8' }} />
-                                <Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }} />
-                                <Bar dataKey="value" fill="#81e6d9" radius={[4, 4, 0, 0]} barSize={30} />
-                            </BarChart>
-                        </ResponsiveContainer>
+                        {loading ? <Skeleton className="w-full h-full" /> : (
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={data?.varietyDist || []}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                    <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 800, fill: '#94a3b8' }} />
+                                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 800, fill: '#94a3b8' }} />
+                                    <Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }} />
+                                    <Bar dataKey="value" fill="#81e6d9" radius={[4, 4, 0, 0]} barSize={30} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        )}
                     </div>
                 </div>
 
                 {/* Spending Tiers Distribution */}
-                <div className="bg-white rounded-[2.5rem] p-8 border border-gray-100 shadow-sm flex flex-col gap-6">
+                <div className="bg-white rounded-[1.5rem] p-8 border border-gray-100 shadow-sm flex flex-col gap-6">
                     <div>
                         <div className="flex items-center gap-2 mb-1">
                             <DollarSign className="w-4 h-4 text-gray-400" />
@@ -195,15 +207,17 @@ export default function ClientesAnalyticsPage() {
                     </div>
 
                     <div className="h-[250px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={data?.valueDist || []}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 8, fontWeight: 800, fill: '#94a3b8' }} />
-                                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 800, fill: '#94a3b8' }} />
-                                <Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }} />
-                                <Bar dataKey="value" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={30} />
-                            </BarChart>
-                        </ResponsiveContainer>
+                        {loading ? <Skeleton className="w-full h-full" /> : (
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={data?.valueDist || []}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                    <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 8, fontWeight: 800, fill: '#94a3b8' }} />
+                                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 800, fill: '#94a3b8' }} />
+                                    <Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }} />
+                                    <Bar dataKey="value" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={30} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        )}
                     </div>
                 </div>
             </div>
