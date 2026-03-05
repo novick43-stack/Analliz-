@@ -119,11 +119,53 @@ export async function GET(request: Request) {
             LIMIT 5
         `;
 
+        // 5. Daily Product Sales Trend (Mockup: Productos vendidos por día)
+        const productsSoldByDay = await sql`
+            SELECT 
+                date_trunc('day', o.created_at) as date,
+                SUM(i.quantity) as count
+            FROM tn_order_items i
+            JOIN tn_orders o ON i.order_id = o.id
+            WHERE o.user_id = ${userId}
+            ${dateFilter}
+            GROUP BY date
+            ORDER BY date ASC
+        `;
+
+        // 6. Summary KPIs for the period
+        const periodSummary = await sql`
+            SELECT 
+                SUM(i.quantity) as total_sold,
+                COUNT(DISTINCT o.id) as total_orders,
+                SUM(i.price * i.quantity) as total_revenue
+            FROM tn_order_items i
+            JOIN tn_orders o ON i.order_id = o.id
+            WHERE o.user_id = ${userId}
+            ${dateFilter}
+        `;
+
+        const summary = periodSummary[0] || { total_sold: 0, total_orders: 0, total_revenue: 0 };
+
+        // Calculate days in range
+        const fromDate = from ? new Date(from) : new Date();
+        const toDate = to ? new Date(to) : new Date();
+        const diffTime = Math.abs(toDate.getTime() - fromDate.getTime());
+        const daysInRange = Math.max(Math.ceil(diffTime / (1000 * 60 * 60 * 24)), 1);
+
+        const kpis = {
+            totalSold: Number(summary.total_sold || 0),
+            soldPerDay: Number(summary.total_sold || 0) / daysInRange,
+            soldPerOrder: Number(summary.total_sold || 0) / Math.max(Number(summary.total_orders || 1), 1),
+            avgPricePerItem: Number(summary.total_revenue || 0) / Math.max(Number(summary.total_sold || 1), 1)
+        };
+
         return NextResponse.json({
             paretoData: allProductsRevenue,
             categoryTreemap: categoryPerformance,
             health: inventoryHealth[0] || { total_inventory_value: 0, total_stock: 0, avg_days_inventory: 0 },
-            alerts
+            alerts,
+            productsSoldByDay,
+            summary: kpis
         });
     } catch (error: any) {
         console.error("Productos Analytics API error:", error);

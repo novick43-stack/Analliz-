@@ -5,8 +5,10 @@ import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
     PieChart, Pie, Legend, Line, ComposedChart, Treemap
 } from "recharts";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 import DateRangePicker from "@/components/analytics/DateRangePicker";
-import { Package, Smartphone, Tag, RefreshCcw, LayoutGrid, AlertCircle, TrendingUp, DollarSign, Clock, Activity } from "lucide-react";
+import { Package, Smartphone, Tag, RefreshCcw, LayoutGrid, AlertCircle, TrendingUp, DollarSign, Clock, Activity, Calendar } from "lucide-react";
 
 export default function ProductosAnalyticsPage() {
     const [data, setData] = useState<any>(null);
@@ -56,6 +58,66 @@ export default function ProductosAnalyticsPage() {
                     </div>
                 </div>
                 <DateRangePicker onRangeChange={handleRangeChange} />
+            </div>
+
+            {/* Top Row: Trend & Period Summary */}
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                {/* Main Trend Chart */}
+                <div className="lg:col-span-3 bg-white rounded-[2.5rem] p-8 border border-gray-100 shadow-sm flex flex-col gap-6">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center text-xl">
+                                <LayoutGrid />
+                            </div>
+                            <h3 className="text-xl font-black text-gray-900 italic uppercase">Productos vendidos por día</h3>
+                        </div>
+                    </div>
+                    <div className="h-[300px] w-full mt-4">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={data?.productsSoldByDay || []} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                <XAxis
+                                    dataKey="date"
+                                    tickFormatter={(str) => str ? format(new Date(str), "d/M", { locale: es }) : ""}
+                                    axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 800, fill: '#94a3b8' }}
+                                />
+                                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 800, fill: '#94a3b8' }} />
+                                <Tooltip
+                                    contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 20px 40px rgba(0,0,0,0.1)' }}
+                                    cursor={{ fill: '#f1f5f9', opacity: 0.4 }}
+                                />
+                                <Bar dataKey="count" name="Vendidos" fill="#7ed4d4" radius={[4, 4, 0, 0]} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+
+                {/* Resumen del Período KPI Grid */}
+                <div className="lg:col-span-1 bg-[#f0f9f9] rounded-[2.5rem] p-6 border border-[#e0f2f2] flex flex-col gap-6">
+                    <div className="flex items-center gap-2 mb-2">
+                        <Calendar className="w-4 h-4 text-gray-700" />
+                        <h3 className="text-sm font-black text-gray-800 uppercase italic">Resumen del período</h3>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                            <p className="text-2xl font-black text-gray-900">{Math.round(data?.summary?.totalSold || 0)}</p>
+                            <p className="text-[8px] font-bold text-gray-400 uppercase leading-tight mt-1">productos vendidos</p>
+                        </div>
+                        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                            <p className="text-2xl font-black text-gray-900">{(data?.summary?.soldPerDay || 0).toFixed(0)}</p>
+                            <p className="text-[8px] font-bold text-gray-400 uppercase leading-tight mt-1">productos por día</p>
+                        </div>
+                        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                            <p className="text-2xl font-black text-gray-900">{(data?.summary?.soldPerOrder || 0).toFixed(1)}</p>
+                            <p className="text-[8px] font-bold text-gray-400 uppercase mt-1">productos por venta</p>
+                        </div>
+                        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                            <p className="text-lg font-black text-gray-900 truncate">{formatCurrency(data?.summary?.avgPricePerItem)}</p>
+                            <p className="text-[7px] font-bold text-gray-400 uppercase mt-1 leading-tight">por producto (promedio)</p>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             {/* Inventory Health Widgets */}
