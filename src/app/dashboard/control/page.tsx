@@ -216,6 +216,52 @@ export default function ControlPage() {
                                 Ver detalle <span className="group-hover:translate-x-1.5 transition-transform">→</span>
                             </div>
                         </Link>
+
+                        {/* 4. Conversión Card */}
+                        <Link
+                            href="/dashboard/analytics/conversion"
+                            className="group relative bg-white rounded-[2rem] p-6 border border-gray-100 shadow-lg hover:shadow-xl transition-all duration-500 hover:-translate-y-1 flex flex-col gap-5 overflow-hidden"
+                        >
+                            <div className="absolute top-0 right-0 w-24 h-24 bg-rose-50 rounded-full -translate-y-12 translate-x-12 group-hover:scale-150 transition-transform duration-700 opacity-40"></div>
+
+                            <div className="w-14 h-14 rounded-2xl bg-rose-600 flex items-center justify-center text-white text-2xl shadow-lg shadow-rose-100 relative z-10">
+                                🎯
+                            </div>
+
+                            <div className="relative z-10">
+                                <h3 className="text-xl font-black text-gray-900 mb-1.5">Conversión</h3>
+                                <p className="text-gray-500 font-medium text-xs leading-relaxed">
+                                    Embudo de ventas, carritos abandonados y efectividad del checkout.
+                                </p>
+                            </div>
+
+                            <div className="flex items-center gap-2 text-rose-600 font-black text-[10px] uppercase tracking-widest mt-auto relative z-10">
+                                Ver detalle <span className="group-hover:translate-x-1.5 transition-transform">→</span>
+                            </div>
+                        </Link>
+
+                        {/* 5. Insights Card */}
+                        <Link
+                            href="/dashboard/analytics/insights"
+                            className="group relative bg-white rounded-[2rem] p-6 border border-gray-100 shadow-lg hover:shadow-xl transition-all duration-500 hover:-translate-y-1 flex flex-col gap-5 overflow-hidden"
+                        >
+                            <div className="absolute top-0 right-0 w-24 h-24 bg-amber-50 rounded-full -translate-y-12 translate-x-12 group-hover:scale-150 transition-transform duration-700 opacity-40"></div>
+
+                            <div className="w-14 h-14 rounded-2xl bg-amber-600 flex items-center justify-center text-white text-2xl shadow-lg shadow-amber-100 relative z-10">
+                                ✨
+                            </div>
+
+                            <div className="relative z-10">
+                                <h3 className="text-xl font-black text-gray-900 mb-1.5">Insights</h3>
+                                <p className="text-gray-500 font-medium text-xs leading-relaxed">
+                                    Análisis predictivo, velocidad de SKU y distribución de valor de órdenes.
+                                </p>
+                            </div>
+
+                            <div className="flex items-center gap-2 text-amber-600 font-black text-[10px] uppercase tracking-widest mt-auto relative z-10">
+                                Ver detalle <span className="group-hover:translate-x-1.5 transition-transform">→</span>
+                            </div>
+                        </Link>
                     </div>
                 )}
             </div>

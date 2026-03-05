@@ -7,6 +7,36 @@ const TIENDANUBE_TOKEN_URL = "https://www.tiendanube.com/api/v1/oauth/token";
 
 const TIENDANUBE_USER_AGENT = "Analliz (novick43@gmail.com)";
 
+/**
+ * Parses Tienda Nube date formats.
+ * TN sometimes returns ISO strings, sometimes objects with .date and .timezone
+ */
+function parseTNDate(tnDate: any) {
+    if (!tnDate) return null;
+    if (typeof tnDate === 'string') return tnDate;
+    if (tnDate.date) return tnDate.date;
+    return tnDate;
+}
+
+/**
+ * Helper to fetch with retries for transient errors (429, 502, 503, 504)
+ */
+async function fetchWithRetry(url: string, options: any, retries = 3, backoff = 1000) {
+    for (let i = 0; i < retries; i++) {
+        const response = await fetch(url, options);
+
+        if (response.ok || response.status === 404) return response;
+
+        const isTransientError = [429, 502, 503, 504].includes(response.status);
+        if (!isTransientError || i === retries - 1) return response;
+
+        console.warn(`Fetch failed (${response.status}), retrying in ${backoff}ms... (Attempt ${i + 1}/${retries})`);
+        await new Promise(resolve => setTimeout(resolve, backoff));
+        backoff *= 2;
+    }
+    throw new Error("Fetch with retry failed unexpectedly");
+}
+
 export async function initializeTiendaNubeTable() {
     try {
         await sql`
@@ -138,72 +168,124 @@ export async function getTiendaNubeConnection(userId: number) {
 }
 
 /**
- * Fetches recent orders from Tienda Nube
+ * Fetches ALL orders from Tienda Nube (paginated)
  */
-export async function getTiendaNubeOrders(storeId: string, accessToken: string, limit: number = 50) {
+export async function getTiendaNubeOrders(storeId: string, accessToken: string, sinceDate?: string) {
+    let allOrders: any[] = [];
+    let page = 1;
+    let hasMore = true;
+
     try {
-        const url = `https://api.tiendanube.com/v1/${storeId}/orders?per_page=${limit}`;
-        const response = await fetch(url, {
-            headers: {
-                "Authentication": `bearer ${accessToken}`,
-                "User-Agent": TIENDANUBE_USER_AGENT
+        while (hasMore) {
+            let url = `https://api.tiendanube.com/v1/${storeId}/orders?per_page=100&page=${page}`;
+            if (sinceDate) {
+                url += `&created_at_min=${sinceDate}`;
             }
-        });
 
-        if (!response.ok) {
-            throw new Error(`Tienda Nube API error: ${response.status}`);
+            const response = await fetchWithRetry(url, {
+                headers: {
+                    "Authentication": `bearer ${accessToken}`,
+                    "User-Agent": TIENDANUBE_USER_AGENT
+                }
+            });
+
+            if (response.status === 404) {
+                hasMore = false;
+                continue;
+            }
+
+            if (!response.ok) throw new Error(`TN Orders [Page ${page}] API error: ${response.status}`);
+
+            const orders = await response.json();
+            if (orders.length === 0) {
+                hasMore = false;
+            } else {
+                allOrders = [...allOrders, ...orders];
+                page++;
+            }
         }
-
-        return await response.json();
+        return allOrders;
     } catch (e) {
-        console.error("Error fetching orders from Tienda Nube", e);
+        console.error("Error fetching all orders from Tienda Nube", e);
         throw e;
     }
 }
 
 /**
- * Fetches products from Tienda Nube
+ * Fetches ALL products from Tienda Nube (paginated)
  */
-export async function getTiendaNubeProducts(storeId: string, accessToken: string, limit: number = 50) {
+export async function getTiendaNubeProducts(storeId: string, accessToken: string) {
+    let allProducts: any[] = [];
+    let page = 1;
+    let hasMore = true;
+
     try {
-        const url = `https://api.tiendanube.com/v1/${storeId}/products?per_page=${limit}`;
-        const response = await fetch(url, {
-            headers: {
-                "Authentication": `bearer ${accessToken}`,
-                "User-Agent": TIENDANUBE_USER_AGENT
+        while (hasMore) {
+            const url = `https://api.tiendanube.com/v1/${storeId}/products?per_page=100&page=${page}`;
+            const response = await fetchWithRetry(url, {
+                headers: {
+                    "Authentication": `bearer ${accessToken}`,
+                    "User-Agent": TIENDANUBE_USER_AGENT
+                }
+            });
+
+            if (response.status === 404) {
+                hasMore = false;
+                continue;
             }
-        });
 
-        if (!response.ok) {
-            throw new Error(`Tienda Nube API error: ${response.status}`);
+            if (!response.ok) throw new Error(`TN Products [Page ${page}] API error: ${response.status}`);
+
+            const products = await response.json();
+            if (products.length === 0) {
+                hasMore = false;
+            } else {
+                allProducts = [...allProducts, ...products];
+                page++;
+            }
         }
-
-        return await response.json();
+        return allProducts;
     } catch (e) {
-        console.error("Error fetching products from Tienda Nube", e);
+        console.error("Error fetching all products from Tienda Nube", e);
         throw e;
     }
 }
 /**
- * Fetches customers from Tienda Nube
+ * Fetches ALL customers from Tienda Nube (paginated)
  */
-export async function getTiendaNubeCustomers(storeId: string, accessToken: string, limit: number = 50) {
+export async function getTiendaNubeCustomers(storeId: string, accessToken: string) {
+    let allCustomers: any[] = [];
+    let page = 1;
+    let hasMore = true;
+
     try {
-        const url = `https://api.tiendanube.com/v1/${storeId}/customers?per_page=${limit}`;
-        const response = await fetch(url, {
-            headers: {
-                "Authentication": `bearer ${accessToken}`,
-                "User-Agent": TIENDANUBE_USER_AGENT
+        while (hasMore) {
+            const url = `https://api.tiendanube.com/v1/${storeId}/customers?per_page=100&page=${page}`;
+            const response = await fetchWithRetry(url, {
+                headers: {
+                    "Authentication": `bearer ${accessToken}`,
+                    "User-Agent": TIENDANUBE_USER_AGENT
+                }
+            });
+
+            if (response.status === 404) {
+                hasMore = false;
+                continue;
             }
-        });
 
-        if (!response.ok) {
-            throw new Error(`Tienda Nube API error (customers): ${response.status}`);
+            if (!response.ok) throw new Error(`TN Customers [Page ${page}] API error: ${response.status}`);
+
+            const customers = await response.json();
+            if (customers.length === 0) {
+                hasMore = false;
+            } else {
+                allCustomers = [...allCustomers, ...customers];
+                page++;
+            }
         }
-
-        return await response.json();
+        return allCustomers;
     } catch (e) {
-        console.error("Error fetching customers from Tienda Nube", e);
+        console.error("Error fetching all customers from Tienda Nube", e);
         throw e;
     }
 }
@@ -288,6 +370,7 @@ export async function initializeTiendaNubeSyncTables() {
                 phone VARCHAR(50),
                 total_spent DECIMAL(15, 2),
                 orders_count INTEGER,
+                identification VARCHAR(50),
                 created_at TIMESTAMP WITH TIME ZONE,
                 updated_at TIMESTAMP WITH TIME ZONE
             )
@@ -305,9 +388,52 @@ export async function initializeTiendaNubeSyncTables() {
                 status VARCHAR(50),
                 payment_status VARCHAR(50),
                 shipping_status VARCHAR(50),
+                payment_method VARCHAR(100),
+                shipping_method VARCHAR(100),
                 currency VARCHAR(10),
+                city VARCHAR(255),
+                province VARCHAR(255),
+                coupon_code VARCHAR(100),
+                customer_identification VARCHAR(50),
+                paid_at TIMESTAMP WITH TIME ZONE,
+                shipped_at TIMESTAMP WITH TIME ZONE,
+                completed_at TIMESTAMP WITH TIME ZONE,
+                cancelled_at TIMESTAMP WITH TIME ZONE,
                 created_at TIMESTAMP WITH TIME ZONE,
                 updated_at TIMESTAMP WITH TIME ZONE
+            )
+        `;
+
+        // Migrations: Ensure all columns exist for all tables
+        await sql`ALTER TABLE tn_products ADD COLUMN IF NOT EXISTS brand VARCHAR(255)`;
+
+        await sql`ALTER TABLE tn_customers ADD COLUMN IF NOT EXISTS phone VARCHAR(50)`;
+        await sql`ALTER TABLE tn_customers ADD COLUMN IF NOT EXISTS total_spent DECIMAL(15, 2)`;
+        await sql`ALTER TABLE tn_customers ADD COLUMN IF NOT EXISTS orders_count INTEGER`;
+        await sql`ALTER TABLE tn_customers ADD COLUMN IF NOT EXISTS identification VARCHAR(50)`;
+
+        await sql`ALTER TABLE tn_orders ADD COLUMN IF NOT EXISTS customer_id BIGINT`;
+        await sql`ALTER TABLE tn_orders ADD COLUMN IF NOT EXISTS payment_method VARCHAR(100)`;
+        await sql`ALTER TABLE tn_orders ADD COLUMN IF NOT EXISTS shipping_method VARCHAR(100)`;
+        await sql`ALTER TABLE tn_orders ADD COLUMN IF NOT EXISTS currency VARCHAR(10)`;
+        await sql`ALTER TABLE tn_orders ADD COLUMN IF NOT EXISTS city VARCHAR(255)`;
+        await sql`ALTER TABLE tn_orders ADD COLUMN IF NOT EXISTS province VARCHAR(255)`;
+        await sql`ALTER TABLE tn_orders ADD COLUMN IF NOT EXISTS coupon_code VARCHAR(100)`;
+        await sql`ALTER TABLE tn_orders ADD COLUMN IF NOT EXISTS customer_identification VARCHAR(50)`;
+        await sql`ALTER TABLE tn_orders ADD COLUMN IF NOT EXISTS paid_at TIMESTAMP WITH TIME ZONE`;
+        await sql`ALTER TABLE tn_orders ADD COLUMN IF NOT EXISTS shipped_at TIMESTAMP WITH TIME ZONE`;
+        await sql`ALTER TABLE tn_orders ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP WITH TIME ZONE`;
+        await sql`ALTER TABLE tn_orders ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMP WITH TIME ZONE`;
+
+        // User Goals Table
+        await sql`
+            CREATE TABLE IF NOT EXISTS user_goals (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                month DATE NOT NULL,
+                revenue_target DECIMAL(15, 2) DEFAULT 0,
+                orders_target INTEGER DEFAULT 0,
+                UNIQUE(user_id, month)
             )
         `;
 
@@ -337,11 +463,11 @@ export async function syncTiendaNubeData(userId: number, storeId: string, access
         await initializeTiendaNubeSyncTables();
 
         // 1. Sync Products & Variants
-        const products = await getTiendaNubeProducts(storeId, accessToken, 200);
+        const products = await getTiendaNubeProducts(storeId, accessToken);
         for (const p of products) {
             await sql`
                 INSERT INTO tn_products (id, user_id, name, description, handle, brand, published, created_at, updated_at)
-                VALUES (${p.id}, ${userId}, ${JSON.stringify(p.name)}, ${JSON.stringify(p.description)}, ${JSON.stringify(p.handle)}, ${p.brand}, ${p.published}, ${p.created_at}, ${p.updated_at})
+                VALUES (${p.id}, ${userId}, ${JSON.stringify(p.name)}, ${JSON.stringify(p.description)}, ${JSON.stringify(p.handle)}, ${p.brand}, ${p.published}, ${parseTNDate(p.created_at)}, ${parseTNDate(p.updated_at)})
                 ON CONFLICT (id) DO UPDATE SET
                     name = EXCLUDED.name,
                     description = EXCLUDED.description,
@@ -362,16 +488,38 @@ export async function syncTiendaNubeData(userId: number, storeId: string, access
             }
         }
 
-        // 2. Sync Orders & Items
-        const orders = await getTiendaNubeOrders(storeId, accessToken, 200);
+        // 2. Sync Orders & Items (Current Year 2026 Only)
+        const currentYearStart = "2026-01-01T00:00:00Z";
+        const orders = await getTiendaNubeOrders(storeId, accessToken, currentYearStart);
         for (const o of orders) {
             await sql`
-                INSERT INTO tn_orders (id, user_id, customer_id, number, total, subtotal, status, payment_status, shipping_status, currency, created_at, updated_at)
-                VALUES (${o.id}, ${userId}, ${o.customer?.id || null}, ${o.number}, ${o.total}, ${o.subtotal}, ${o.status}, ${o.payment_status}, ${o.shipping_status}, ${o.currency}, ${o.created_at}, ${o.updated_at})
+                INSERT INTO tn_orders (
+                    id, user_id, customer_id, number, total, subtotal, status, 
+                    payment_status, shipping_status, payment_method, shipping_method, 
+                    currency, city, province, coupon_code, customer_identification, paid_at, shipped_at, 
+                    completed_at, cancelled_at, created_at, updated_at
+                )
+                VALUES (
+                    ${o.id}, ${userId}, ${o.customer?.id || null}, ${o.number}, ${o.total}, ${o.subtotal}, ${o.status}, 
+                    ${o.payment_status}, ${o.shipping_status}, ${o.payment_method}, ${o.shipping_option}, 
+                    ${o.currency}, ${o.shipping_address?.city || null}, ${o.shipping_address?.province || null}, 
+                    ${o.coupon?.[0]?.code || null}, ${o.customer?.identification || null}, ${parseTNDate(o.paid_at)}, ${parseTNDate(o.shipped_at)}, 
+                    ${parseTNDate(o.completed_at)}, ${parseTNDate(o.cancelled_at)}, ${parseTNDate(o.created_at)}, ${parseTNDate(o.updated_at)}
+                )
                 ON CONFLICT (id) DO UPDATE SET
                     status = EXCLUDED.status,
                     payment_status = EXCLUDED.payment_status,
                     shipping_status = EXCLUDED.shipping_status,
+                    payment_method = EXCLUDED.payment_method,
+                    shipping_method = EXCLUDED.shipping_method,
+                    city = EXCLUDED.city,
+                    province = EXCLUDED.province,
+                    coupon_code = EXCLUDED.coupon_code,
+                    customer_identification = EXCLUDED.customer_identification,
+                    paid_at = EXCLUDED.paid_at,
+                    shipped_at = EXCLUDED.shipped_at,
+                    completed_at = EXCLUDED.completed_at,
+                    cancelled_at = EXCLUDED.cancelled_at,
                     updated_at = EXCLUDED.updated_at
             `;
 
@@ -387,17 +535,18 @@ export async function syncTiendaNubeData(userId: number, storeId: string, access
         }
 
         // 3. Sync Customers
-        const customers = await getTiendaNubeCustomers(storeId, accessToken, 200);
+        const customers = await getTiendaNubeCustomers(storeId, accessToken);
         for (const c of customers) {
             await sql`
-                INSERT INTO tn_customers (id, user_id, name, email, phone, total_spent, orders_count, created_at, updated_at)
-                VALUES (${c.id}, ${userId}, ${c.name}, ${c.email}, ${c.phone}, ${c.total_spent}, ${c.orders_count}, ${c.created_at}, ${c.updated_at})
+                INSERT INTO tn_customers (id, user_id, name, email, phone, total_spent, orders_count, identification, created_at, updated_at)
+                VALUES (${c.id}, ${userId}, ${c.name}, ${c.email}, ${c.phone}, ${c.total_spent}, ${c.orders_count}, ${c.identification || null}, ${parseTNDate(c.created_at)}, ${parseTNDate(c.updated_at)})
                 ON CONFLICT (id) DO UPDATE SET
                     name = EXCLUDED.name,
                     email = EXCLUDED.email,
                     phone = EXCLUDED.phone,
                     total_spent = EXCLUDED.total_spent,
                     orders_count = EXCLUDED.orders_count,
+                    identification = EXCLUDED.identification,
                     updated_at = EXCLUDED.updated_at
             `;
         }
@@ -407,7 +556,7 @@ export async function syncTiendaNubeData(userId: number, storeId: string, access
         for (const cat of categories) {
             await sql`
                 INSERT INTO tn_categories (id, user_id, name, description, parent_id, created_at, updated_at)
-                VALUES (${cat.id}, ${userId}, ${JSON.stringify(cat.name)}, ${JSON.stringify(cat.description)}, ${cat.parent_id}, ${cat.created_at}, ${cat.updated_at})
+                VALUES (${cat.id}, ${userId}, ${JSON.stringify(cat.name)}, ${JSON.stringify(cat.description)}, ${cat.parent_id}, ${parseTNDate(cat.created_at)}, ${parseTNDate(cat.updated_at)})
                 ON CONFLICT (id) DO UPDATE SET
                     name = EXCLUDED.name,
                     description = EXCLUDED.description,

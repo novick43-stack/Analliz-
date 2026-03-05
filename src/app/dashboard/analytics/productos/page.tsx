@@ -1,49 +1,206 @@
 "use client";
 
+import { useEffect, useState, useCallback } from "react";
+import {
+    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
+    PieChart, Pie, Legend, Line, ComposedChart, Treemap
+} from "recharts";
+import DateRangePicker from "@/components/analytics/DateRangePicker";
+import { Package, Smartphone, Tag, RefreshCcw, LayoutGrid, AlertCircle, TrendingUp, DollarSign, Clock, Activity } from "lucide-react";
+
 export default function ProductosAnalyticsPage() {
+    const [data, setData] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
+    const [range, setRange] = useState<{ from: string, to: string } | null>(null);
+
+    const fetchData = async () => {
+        setLoading(true);
+        try {
+            let url = "/api/analytics/productos";
+            if (range) {
+                url += `?from=${range.from}&to=${range.to}`;
+            }
+            const res = await fetch(url);
+            const json = await res.json();
+            setData(json);
+        } catch (error) {
+            console.error("Error fetching productos analytics:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchData();
+    }, [range]);
+
+    const handleRangeChange = useCallback((from: string, to: string) => {
+        setRange({ from, to });
+    }, []);
+
+    const formatCurrency = (val: number) => {
+        return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(val || 0);
+    };
+
+    const COLORS = ['#3b82f6', '#4f46e5', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981'];
+
     return (
-        <section className="flex flex-col gap-10 pb-20">
-            <div className="flex flex-col gap-4">
-                <h2 className="text-5xl font-black text-gray-900 tracking-tight">Gestión de Productos</h2>
-                <div className="flex items-center gap-3">
-                    <span className="px-4 py-1.5 rounded-full bg-indigo-100 text-indigo-700 text-xs font-black uppercase tracking-widest">Deep Dive</span>
-                    <p className="text-gray-400 font-bold italic">Stock, Variantes y Performance por Producto</p>
+        <section className="flex flex-col gap-12 pb-20">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+                <div className="flex flex-col gap-4">
+                    <h2 className="text-6xl font-black text-gray-900 tracking-tight leading-none italic uppercase">Inteligencia de <span className="text-indigo-600">Producto</span></h2>
+                    <div className="flex items-center gap-3">
+                        <span className="px-4 py-1.5 rounded-full bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest">Inventory & Catalog</span>
+                        <p className="text-gray-400 font-bold italic text-sm">Optimización de stock y detección de productos estrella</p>
+                    </div>
+                </div>
+                <DateRangePicker onRangeChange={handleRangeChange} />
+            </div>
+
+            {/* Inventory Health Widgets */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                {[
+                    {
+                        label: "Valor Total Inventario",
+                        val: formatCurrency(data?.health?.total_inventory_value),
+                        icon: <DollarSign />,
+                        color: "emerald",
+                        desc: "Capital inmovilizado en stock"
+                    },
+                    {
+                        label: "Días de Inventario",
+                        val: `${Math.round(data?.health?.avg_days_inventory || 0)} días`,
+                        icon: <Clock />,
+                        color: "blue",
+                        desc: "Estimación de falta de stock"
+                    },
+                    {
+                        label: "Tasa de Rotación",
+                        val: `${((data?.health?.total_stock || 0) > 0 ? (data?.categoryTreemap?.reduce((acc: number, c: any) => acc + Number(c.sold_quantity), 0) / data?.health?.total_stock * 100).toFixed(1) : 0)}%`,
+                        icon: <Activity />,
+                        color: "indigo",
+                        desc: "Ritmo de salida vs stock"
+                    }
+                ].map((kpi, i) => (
+                    <div key={i} className="bg-white rounded-[3rem] p-10 border border-gray-100 shadow-xl shadow-gray-200/50 flex flex-col gap-6 hover:translate-y-[-4px] transition-all duration-500 group">
+                        <div className={`w-16 h-16 rounded-3xl bg-${kpi.color}-50 text-${kpi.color}-600 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform`}>
+                            {kpi.icon}
+                        </div>
+                        <div>
+                            <p className="text-gray-400 font-black text-[10px] uppercase tracking-[0.2em] mb-1">{kpi.label}</p>
+                            <h3 className="text-4xl font-black text-gray-900 tracking-tighter">{loading ? "..." : kpi.val}</h3>
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-2">{kpi.desc}</p>
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {/* Pareto Analysis (Top products contributing to 80% revenue) */}
+            <div className="bg-white rounded-[4rem] p-12 border border-gray-100 shadow-2xl relative overflow-hidden group">
+                <div className="flex items-center justify-between mb-16 px-4">
+                    <div>
+                        <h3 className="text-3xl font-black text-gray-900 italic uppercase">Análisis Pareto (Top Skus)</h3>
+                        <p className="text-gray-400 font-bold text-xs uppercase tracking-widest mt-2">Detección de productos que generan el 80% de tus ingresos</p>
+                    </div>
+                </div>
+
+                <div className="h-[500px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <ComposedChart data={data?.paretoData || []}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                            <XAxis
+                                dataKey="name"
+                                hide
+                            />
+                            <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 800 }} tickFormatter={(v) => `$${v / 1000}k`} />
+                            <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fill: '#8b5cf6', fontSize: 10, fontWeight: 800 }} tickFormatter={(v) => `${v}%`} />
+                            <Tooltip
+                                contentStyle={{ borderRadius: '24px', border: 'none', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.2)' }}
+                                itemStyle={{ fontWeight: 800 }}
+                            />
+                            <Bar yAxisId="left" dataKey="total_revenue" radius={[12, 12, 0, 0]} barSize={40}>
+                                {(data?.paretoData || []).map((_: any, i: number) => (
+                                    <Cell key={i} fill={i < 10 ? '#3b82f6' : '#cbd5e1'} />
+                                ))}
+                            </Bar>
+                            <Line yAxisId="right" type="monotone" dataKey="cumulative_percentage" stroke="#8b5cf6" strokeWidth={4} dot={{ fill: '#8b5cf6', r: 4 }} />
+                        </ComposedChart>
+                    </ResponsiveContainer>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
-                <div className="lg:col-span-2 bg-white rounded-[3rem] p-12 border border-gray-100 shadow-xl flex flex-col gap-8">
-                    <div className="flex justify-between items-center">
-                        <h3 className="text-2xl font-black text-gray-900">Productos Destacados</h3>
-                        <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-2xl">🏆</div>
+            {/* Treemap & Alerts */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Stock Treemap */}
+                <div className="lg:col-span-2 bg-gray-900 rounded-[4rem] p-12 shadow-2xl text-white overflow-hidden relative">
+                    <div className="flex items-center gap-6 mb-12 relative z-10">
+                        <div className="w-16 h-16 rounded-3xl bg-blue-600 flex items-center justify-center text-3xl shadow-xl shadow-blue-500/20">
+                            <LayoutGrid />
+                        </div>
+                        <div>
+                            <h3 className="text-3xl font-black italic uppercase">Distribución de Stock</h3>
+                            <p className="text-blue-300 font-bold text-sm uppercase tracking-widest">Tamaño por valor de inventario</p>
+                        </div>
                     </div>
 
-                    <div className="flex flex-col gap-6 items-center justify-center py-20 text-gray-300 border-2 border-dashed border-gray-50 rounded-[2.5rem]">
-                        <span className="text-5xl">🏷️</span>
-                        <p className="font-bold italic">No hay productos con ventas registradas aún.</p>
+                    <div className="h-[400px] w-full relative z-10">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <Treemap
+                                data={data?.categoryTreemap || []}
+                                dataKey="value"
+                                stroke="#111827"
+                                fill="#3b82f6"
+                            >
+                                <Tooltip
+                                    contentStyle={{ background: '#111827', border: 'none', borderRadius: '16px' }}
+                                    formatter={(v: any) => formatCurrency(v)}
+                                />
+                            </Treemap>
+                        </ResponsiveContainer>
                     </div>
                 </div>
 
-                <div className="bg-gradient-to-b from-indigo-600 to-blue-700 rounded-[3rem] p-10 text-white shadow-2xl flex flex-col gap-8">
-                    <div className="flex flex-col gap-2">
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Resumen de Inventario</span>
-                        <h4 className="text-3xl font-black">Stock Audit</h4>
-                    </div>
-
-                    <div className="space-y-6">
-                        <div className="p-6 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10 flex flex-col gap-1">
-                            <span className="text-[10px] font-black uppercase opacity-60">Total SKU</span>
-                            <span className="text-4xl font-black">0</span>
+                {/* Stock-out Alerts */}
+                <div className="bg-rose-600 rounded-[4rem] p-12 shadow-2xl text-white flex flex-col">
+                    <div className="flex items-center gap-6 mb-12">
+                        <div className="w-16 h-16 rounded-3xl bg-white/20 flex items-center justify-center text-3xl">
+                            <AlertCircle />
                         </div>
-                        <div className="p-6 rounded-2xl bg-red-400/20 backdrop-blur-md border border-red-400/20 flex flex-col gap-1">
-                            <span className="text-[10px] font-black uppercase opacity-60 text-red-100">Sin Stock</span>
-                            <span className="text-4xl font-black text-red-100">0</span>
+                        <div>
+                            <h3 className="text-2xl font-black italic uppercase">Riesgo Quiebre</h3>
+                            <p className="text-rose-200 font-bold text-[10px] uppercase tracking-widest mt-2">Productos que se agotan en &lt; 7 días</p>
                         </div>
                     </div>
 
-                    <p className="text-xs font-bold leading-relaxed opacity-60 italic mt-auto">
-                        Asegúrate de sincronizar tu tienda para ver métricas de stock en tiempo real.
-                    </p>
+                    <div className="flex flex-col gap-6 flex-1">
+                        {data?.alerts?.length > 0 ? (
+                            data.alerts.map((alert: any, i: number) => (
+                                <div key={i} className="flex flex-col gap-2 p-6 rounded-3xl bg-white/10 border border-white/10">
+                                    <span className="text-xs font-black uppercase truncate">{alert.name}</span>
+                                    <div className="flex justify-between items-end">
+                                        <div>
+                                            <p className="text-2xl font-black">{Math.round(alert.days_left)}</p>
+                                            <p className="text-[10px] font-bold text-rose-200 uppercase tracking-widest">días restantes</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-xs font-bold">{alert.stock} unidades</p>
+                                            <p className="text-[10px] font-bold text-rose-200 uppercase tracking-widest">Stock actual</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))
+                        ) : (
+                            <div className="flex-1 flex flex-col items-center justify-center opacity-50">
+                                <Package className="w-16 h-16 mb-4" />
+                                <p className="text-sm font-black uppercase italic">Todo bajo control</p>
+                            </div>
+                        )}
+                    </div>
+
+                    <button className="mt-8 w-full py-6 rounded-[2rem] bg-white text-rose-600 font-black uppercase tracking-widest text-xs hover:bg-rose-50 transition-colors">
+                        Ver sugerencia de compra
+                    </button>
                 </div>
             </div>
         </section>

@@ -9,7 +9,7 @@ export default function SidebarNav({ closeSidebar }: { closeSidebar?: () => void
     const searchParams = useSearchParams();
     const [isTablesOpen, setIsTablesOpen] = useState(false);
     const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
-    const [isGestionOpen, setIsGestionOpen] = useState(true);
+    const [isGestionOpen, setIsGestionOpen] = useState(false);
 
     const TABLES = [
         { id: "tn_orders", name: "Pedidos", icon: "📦" },
@@ -123,6 +123,26 @@ export default function SidebarNav({ closeSidebar }: { closeSidebar?: () => void
                                 }`}
                         >
                             Clientes
+                        </Link>
+                        <Link
+                            href="/dashboard/analytics/conversion"
+                            onClick={() => closeSidebar?.()}
+                            className={`px-4 py-3 rounded-xl text-sm font-bold transition-all ${pathname === "/dashboard/analytics/conversion"
+                                ? "text-blue-600 bg-white shadow-sm"
+                                : "text-gray-400 hover:text-gray-600"
+                                }`}
+                        >
+                            Conversión
+                        </Link>
+                        <Link
+                            href="/dashboard/analytics/insights"
+                            onClick={() => closeSidebar?.()}
+                            className={`px-4 py-3 rounded-xl text-sm font-bold transition-all ${pathname === "/dashboard/analytics/insights"
+                                ? "text-blue-600 bg-white shadow-sm"
+                                : "text-gray-400 hover:text-gray-600"
+                                }`}
+                        >
+                            Insights
                         </Link>
                     </div>
                 </div>

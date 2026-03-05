@@ -13,42 +13,11 @@ export default async function PersonalDashboard() {
 
     const { user } = session;
 
-    let userLogins: any[] = [];
-    let userInfo: any = null;
     let tiendaNubeConnection: any = null;
-    let dbError = false;
 
     try {
-        // Initialize Tienda Nube table
         await initializeTiendaNubeTable();
 
-        // Ensure tables exist
-        await sql`
-            CREATE TABLE IF NOT EXISTS users (
-                id SERIAL PRIMARY KEY,
-                auth0_id VARCHAR(255) UNIQUE NOT NULL,
-                email VARCHAR(255),
-                name VARCHAR(255),
-                nickname VARCHAR(255),
-                last_login TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-            )
-        `;
-
-        await sql`
-            CREATE TABLE IF NOT EXISTS login_events (
-                id SERIAL PRIMARY KEY,
-                user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-                auth0_id VARCHAR(255) NOT NULL,
-                email VARCHAR(255),
-                name VARCHAR(255),
-                login_timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-                ip_address VARCHAR(45),
-                user_agent TEXT
-            )
-        `;
-
-        // Get or create user
         const userResult = await sql`
             INSERT INTO users (auth0_id, email, name, nickname)
             VALUES (${user.sub}, ${user.email}, ${user.name}, ${user.nickname})
@@ -60,60 +29,53 @@ export default async function PersonalDashboard() {
             RETURNING *
         `;
 
-        userInfo = userResult[0] || null;
+        const userInfo = userResult[0] || null;
 
-        // Track login event
         if (userInfo?.id) {
             await sql`
                 INSERT INTO login_events (user_id, auth0_id, email, name, ip_address, user_agent)
                 VALUES (${userInfo.id}, ${user.sub}, ${user.email}, ${user.name}, ${null}, ${null})
             `;
-
-            // Get login history
-            const logins = await sql`
-                SELECT * FROM login_events 
-                WHERE user_id = ${userInfo.id}
-                ORDER BY login_timestamp DESC
-                LIMIT 10
-            `;
-            userLogins = logins || [];
-
-            // Get Tienda Nube connection status
             tiendaNubeConnection = await getTiendaNubeConnection(userInfo.id);
         }
     } catch (e) {
         console.error("Failed to initialize database or fetch user data", e);
-        dbError = true;
     }
 
     return (
-        <section>
+        <section className="flex flex-col gap-8">
             {/* Welcome Section */}
-            <div className="bg-white rounded-3xl shadow-lg border border-gray-100 p-8 hover:shadow-xl transition-shadow mb-8">
-                <div className="flex items-start justify-between">
-                    <div>
-                        <h2 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 mb-2">
-                            ¡Hola, {user.name || user.nickname || "Usuario"}!
-                        </h2>
-                        <p className="text-gray-600 text-lg">Bienvenido a tu panel central de Analliz.</p>
-                        {tiendaNubeConnection ? (
-                            <div className="mt-4 flex items-center gap-2 text-green-600 font-medium">
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                Tienda conectada: <span className="font-bold">{tiendaNubeConnection.store_name || "Mi Tienda"}</span>
-                            </div>
-                        ) : (
-                            <div className="mt-4 flex items-center gap-2 text-amber-600 font-medium">
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                                </svg>
-                                Aún no has conectado tu Tienda Nube.
-                                <Link href="/setup/tiendanube" className="ml-2 underline hover:text-amber-700">Conectar ahora</Link>
-                            </div>
-                        )}
+            <div className="bg-white rounded-[3rem] shadow-xl border border-gray-100 p-12">
+                <h2 className="text-5xl font-black text-gray-900 tracking-tighter italic uppercase mb-4">
+                    ¡Hola, <span className="text-blue-600">{user.name || user.nickname || "Usuario"}</span>!
+                </h2>
+                <p className="text-gray-400 font-bold italic text-lg mb-8">Bienvenido a Analliz. Panel de control en preparación.</p>
+
+                {tiendaNubeConnection ? (
+                    <div className="flex items-center gap-3 px-6 py-3 bg-emerald-50 text-emerald-600 rounded-full w-fit font-black uppercase text-xs tracking-widest">
+                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                        Tienda conectada: {tiendaNubeConnection.store_name || "Mi Tienda"}
                     </div>
-                </div>
+                ) : (
+                    <div className="flex items-center gap-6 p-8 bg-amber-50 border border-amber-100 rounded-[2rem]">
+                        <div className="flex flex-col gap-1">
+                            <p className="text-amber-800 font-black uppercase text-xs tracking-widest">Conexión Pendiente</p>
+                            <p className="text-amber-600 text-sm font-bold">Aún no has vinculado tu Tienda Nube para ver analíticas.</p>
+                        </div>
+                        <Link href="/setup/tiendanube" className="ml-auto px-8 py-4 bg-amber-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-amber-700 transition-all">
+                            Conectar Tienda
+                        </Link>
+                    </div>
+                )}
+            </div>
+
+            {/* Placeholder for future widgets */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 opacity-20 pointer-events-none">
+                {[1, 2, 3].map(i => (
+                    <div key={i} className="h-64 border-2 border-dashed border-gray-200 rounded-[3rem] flex items-center justify-center">
+                        <span className="text-[10px] font-black uppercase tracking-[0.5em] text-gray-300">Espacio Disponible</span>
+                    </div>
+                ))}
             </div>
         </section>
     );
