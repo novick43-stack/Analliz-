@@ -93,6 +93,42 @@ aside a {
   animation: shimmer 2s infinite linear;
 }
 
+/* Glassmorphism Light */
+.glass-card-light {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.04);
+}
+
+.bg-mesh-light {
+  background-color: #ffffff;
+  background-image:
+    radial-gradient(at 0% 0%, hsla(210, 100%, 98%, 1) 0, transparent 50%),
+    radial-gradient(at 50% 0%, hsla(220, 100%, 97%, 1) 0, transparent 50%),
+    radial-gradient(at 100% 0%, hsla(230, 100%, 96%, 1) 0, transparent 50%);
+  background-attachment: fixed;
+}
+
+@keyframes float {
+  0% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
+
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
 .dark .animate-shimmer {
   background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
 }
