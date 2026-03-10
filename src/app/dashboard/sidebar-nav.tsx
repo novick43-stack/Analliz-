@@ -40,6 +40,7 @@ export default function SidebarNav({ closeSidebar }: { closeSidebar?: () => void
         { href: "/dashboard/control", name: "Vista General", icon: <LayoutDashboard className="w-4 h-4" /> },
         { href: "/dashboard/analytics/ventas", name: "Ventas", icon: <TrendingUp className="w-4 h-4" /> },
         { href: "/dashboard/analytics/productos", name: "Productos", icon: <Package className="w-4 h-4" /> },
+        { href: "/dashboard/analytics/stock", name: "Stock", icon: <Package className="w-4 h-4" /> },
         { href: "/dashboard/analytics/clientes", name: "Clientes", icon: <Users className="w-4 h-4" /> },
         { href: "/dashboard/analytics/conversion", name: "Conversión", icon: <RefreshCcw className="w-4 h-4" /> },
         { href: "/dashboard/analytics/insights", name: "Insights", icon: <Zap className="w-4 h-4" /> },

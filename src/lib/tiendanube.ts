@@ -197,7 +197,8 @@ export async function initializeTiendaNubeSyncTables() {
                 stock INTEGER,
                 sku VARCHAR(255),
                 barcode VARCHAR(255),
-                weight DECIMAL(10, 3)
+                weight DECIMAL(10, 3),
+                values JSONB
             )
         `;
 
@@ -321,6 +322,7 @@ export async function runMigrations() {
             sql`ALTER TABLE tn_orders ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP WITH TIME ZONE`,
             sql`ALTER TABLE tn_orders ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMP WITH TIME ZONE`,
             sql`ALTER TABLE tiendanube_connections ADD COLUMN IF NOT EXISTS admin_domain VARCHAR(255)`,
+            sql`ALTER TABLE tn_variants ADD COLUMN IF NOT EXISTS values JSONB`,
         ]);
         console.log("[Migrations] Schema migrations completed successfully.");
     } catch (e) {
@@ -514,9 +516,9 @@ export async function syncTiendaNubeData(
                     if (p.variants) {
                         for (const v of p.variants) {
                             await sql`
-                                INSERT INTO tn_variants (id, product_id, price, stock, sku, barcode, weight)
-                                VALUES (${v.id}, ${p.id}, ${v.price}, ${v.stock}, ${v.sku}, ${v.barcode}, ${v.weight})
-                                ON CONFLICT (id) DO UPDATE SET price = EXCLUDED.price, stock = EXCLUDED.stock
+                                INSERT INTO tn_variants (id, product_id, price, stock, sku, barcode, weight, values)
+                                VALUES (${v.id}, ${p.id}, ${v.price}, ${v.stock}, ${v.sku}, ${v.barcode}, ${v.weight}, ${JSON.stringify(v.values)})
+                                ON CONFLICT (id) DO UPDATE SET price = EXCLUDED.price, stock = EXCLUDED.stock, values = EXCLUDED.values
                             `;
                         }
                     }
@@ -555,15 +557,17 @@ export async function syncTiendaNubeData(
                         INSERT INTO tn_orders (
                             id, user_id, customer_id, number, total, subtotal, status, 
                             payment_status, shipping_status, payment_method, shipping_method, 
-                            currency, city, province, coupon_code, customer_identification, paid_at, shipped_at, 
+                            currency, city, province, coupon_code, discount, shipping_cost_owner, 
+                            shipping_cost_customer, customer_identification, paid_at, shipped_at, 
                             completed_at, cancelled_at, created_at, updated_at
                         )
                         VALUES (
                             ${o.id}, ${userId}, ${o.customer?.id || null}, ${o.number}, ${o.total}, ${o.subtotal}, ${o.status}, 
                             ${o.payment_status}, ${o.shipping_status}, ${o.payment_method}, ${o.shipping_option}, 
                             ${o.currency}, ${o.shipping_address?.city || null}, ${o.shipping_address?.province || null}, 
-                            ${o.coupon?.[0]?.code || null}, ${Number(o.discount || 0)}, ${Number(o.shipping_cost_owner || 0)}, ${Number(o.shipping_cost_customer || 0)},
-                            ${o.customer?.identification || null}, ${parseTNDate(o.paid_at)}, ${parseTNDate(o.shipped_at)}, 
+                            ${o.coupon?.[0]?.code || null}, ${Number(o.discount || 0)}, ${Number(o.shipping_cost_owner || 0)}, 
+                            ${Number(o.shipping_cost_customer || 0)}, ${o.customer?.identification || null}, 
+                            ${parseTNDate(o.paid_at)}, ${parseTNDate(o.shipped_at)}, 
                             ${parseTNDate(o.completed_at)}, ${parseTNDate(o.cancelled_at)}, ${parseTNDate(o.created_at)}, ${parseTNDate(o.updated_at)}
                         )
                         ON CONFLICT (id) DO UPDATE SET 
