@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { getTiendaNubeConnection, syncTiendaNubeData, initializeTiendaNubeSyncTables } from "@/lib/tiendanube";
 import { sql } from "@/lib/db";
 
+export const maxDuration = 300;
+
 export async function POST() {
     try {
         const session = await auth0.getSession();
@@ -22,8 +24,35 @@ export async function POST() {
             return NextResponse.json({ error: "Tienda Nube not connected" }, { status: 400 });
         }
 
-        const result = await syncTiendaNubeData(userId, connection.store_id, connection.access_token);
-        return NextResponse.json(result);
+        const encoder = new TextEncoder();
+        const stream = new ReadableStream({
+            async start(controller) {
+                const sendProgress = (message: string, progress: number) => {
+                    controller.enqueue(encoder.encode(JSON.stringify({ message, progress }) + "\n"));
+                };
+
+                try {
+                    await syncTiendaNubeData(userId, connection.store_id, connection.access_token, (msg, p) => {
+                        sendProgress(msg, p);
+                    });
+                    controller.close();
+                } catch (err: any) {
+                    console.error("Stream sync error:", err);
+                    sendProgress(`Error: ${err.message}`, -1);
+                    // Just close gracefully after sending the error message to avoid "network error" in browser
+                    controller.close();
+                }
+            }
+        });
+
+        return new Response(stream, {
+            headers: {
+                "Content-Type": "text/event-stream",
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive"
+            }
+        });
+
     } catch (error: any) {
         console.error("Sync API error:", error);
         return NextResponse.json({ error: error.message }, { status: 500 });

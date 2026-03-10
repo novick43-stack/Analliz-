@@ -1,282 +1,423 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import {
-    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
-    PieChart, Pie, Legend, Line, ComposedChart, Treemap
-} from "recharts";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import DateRangePicker from "@/components/analytics/DateRangePicker";
-import { Package, Smartphone, Tag, RefreshCcw, LayoutGrid, AlertCircle, TrendingUp, DollarSign, Clock, Activity, Calendar } from "lucide-react";
 import Skeleton from "@/components/ui/Skeleton";
+import { useTheme } from "next-themes";
+import { Package, AlertTriangle, LayoutDashboard, Search, ChevronLeft, ChevronRight, CheckCircle2, XCircle, TrendingUp, DollarSign, Layers } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
+
+// ─────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────
+interface ParetoItem {
+    product_id: string;
+    name: any;
+    sold_quantity: string | number;
+    total_revenue: number;
+    cumulative_revenue: number;
+    grand_total: number;
+    cumulative_percentage: number;
+}
+interface Product {
+    id: string;
+    name: any; // JSONB
+    published: boolean;
+    variant_count: string | number;
+}
+
+interface ProductosData {
+    productList: Product[];
+    paretoData: ParetoItem[];
+    health?: {
+        total_inventory_value: number;
+        total_stock: number;
+        total_products: number;
+        avg_days_inventory: number;
+    };
+    adminDomain?: string;
+    [key: string]: any;
+}
 
 export default function ProductosAnalyticsPage() {
-    const [data, setData] = useState<any>(null);
+    const { theme } = useTheme();
+    const [data, setData] = useState<ProductosData | null>(null);
     const [loading, setLoading] = useState(true);
-    const [range, setRange] = useState<{ from: string, to: string } | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [range, setRange] = useState<{ from: string; to: string } | null>(null);
 
-    const fetchData = async () => {
+    // UI Local State
+    const [searchTerm, setSearchTerm] = useState("");
+    const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('active');
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 10;
+
+    const isDark = theme === "dark";
+
+    const fetchData = useCallback(async () => {
         setLoading(true);
+        setError(null);
         try {
             let url = "/api/analytics/productos";
-            if (range) {
-                url += `?from=${range.from}&to=${range.to}`;
-            }
+            if (range) url += `?from=${range.from}&to=${range.to}`;
             const res = await fetch(url);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const json = await res.json();
+            if (json.error) throw new Error(json.error);
             setData(json);
-        } catch (error) {
-            console.error("Error fetching productos analytics:", error);
+        } catch (e: any) {
+            setError(e.message);
         } finally {
             setLoading(false);
         }
-    };
+    }, [range]);
 
     useEffect(() => {
         fetchData();
-    }, [range]);
+    }, [fetchData]);
 
     const handleRangeChange = useCallback((from: string, to: string) => {
         setRange({ from, to });
     }, []);
 
-    const formatCurrency = (val: number) => {
-        return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(val || 0);
+    // Derived Data
+    const getProductName = (nameObj: any) => {
+        if (!nameObj) return "N/A";
+        if (typeof nameObj === "string") return nameObj;
+        return nameObj.es || nameObj.en || nameObj.pt || Object.values(nameObj)[0] || "Producto sin nombre";
     };
 
-    const COLORS = ['#3b82f6', '#4f46e5', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981'];
+    const formatCurrency = (amount: number) => {
+        return new Intl.NumberFormat('es-AR', {
+            style: 'currency',
+            currency: 'ARS',
+            maximumFractionDigits: 0
+        }).format(amount);
+    };
+
+    const filteredProducts = data?.productList?.filter(p => {
+        const matchesSearch = getProductName(p.name).toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesStatus = statusFilter === 'all'
+            || (statusFilter === 'active' && p.published)
+            || (statusFilter === 'inactive' && !p.published);
+        return matchesSearch && matchesStatus;
+    }) || [];
+
+    const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
+    const paginatedProducts = filteredProducts.slice(
+        (currentPage - 1) * ITEMS_PER_PAGE,
+        currentPage * ITEMS_PER_PAGE
+    );
 
     return (
-        <section className="flex flex-col gap-12 pb-20">
+        <section className="flex flex-col gap-8 pb-12">
             {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-                <div className="flex flex-col gap-4">
-                    <h2 className="text-6xl font-black text-gray-900 tracking-tight leading-none italic uppercase">Inteligencia de <span className="text-indigo-600">Producto</span></h2>
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-border pb-8">
+                <div className="flex flex-col gap-2">
                     <div className="flex items-center gap-3">
-                        <span className="px-4 py-1.5 rounded-full bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest">Inventory & Catalog</span>
-                        <p className="text-gray-400 font-bold italic text-sm">Optimización de stock y detección de productos estrella</p>
+                        <div className="w-10 h-10 rounded-xl bg-accent/10 text-accent flex items-center justify-center">
+                            <Package className="w-6 h-6" />
+                        </div>
+                        <h2 className="text-4xl font-black text-foreground tracking-tight uppercase">
+                            Catálogo de Productos
+                        </h2>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <span className="px-3 py-1 rounded-full bg-accent text-white text-[10px] font-bold uppercase tracking-widest">
+                            Gestión & Analítica
+                        </span>
                     </div>
                 </div>
                 <DateRangePicker onRangeChange={handleRangeChange} />
             </div>
 
-            {/* Top Row: Trend & Period Summary */}
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                {/* Main Trend Chart */}
-                <div className="lg:col-span-3 bg-white rounded-[2.5rem] p-8 border border-gray-100 shadow-sm flex flex-col gap-6">
+            {/* Resumen KPIs */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="bg-card p-6 rounded-[2rem] border border-border shadow-sm flex flex-col gap-1 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform">
+                        <DollarSign className="w-12 h-12 text-emerald-500" />
+                    </div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Valor Total del Stock</p>
+                    <p className="text-3xl font-black text-foreground tabular-nums">
+                        {loading ? "..." : formatCurrency(data?.health?.total_inventory_value || 0)}
+                    </p>
+                </div>
+                <div className="bg-card p-6 rounded-[2rem] border border-border shadow-sm flex flex-col gap-1 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform">
+                        <Package className="w-12 h-12 text-accent" />
+                    </div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Productos en Catálogo</p>
+                    <p className="text-3xl font-black text-foreground tabular-nums">
+                        {loading ? "..." : data?.productList?.length || 0}
+                    </p>
+                </div>
+                <div className="bg-card p-6 rounded-[2rem] border border-border shadow-sm flex flex-col gap-1 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform">
+                        <TrendingUp className="w-12 h-12 text-blue-500" />
+                    </div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Unidades Vendidas (Periodo)</p>
+                    <p className="text-3xl font-black text-foreground tabular-nums">
+                        {loading ? "..." : data?.summary?.totalSold || 0}
+                    </p>
+                </div>
+                <div className="bg-card p-6 rounded-[2rem] border border-border shadow-sm flex flex-col gap-1 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform">
+                        <Layers className="w-12 h-12 text-orange-500" />
+                    </div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Ventas Totales (Periodo)</p>
+                    <p className="text-3xl font-black text-foreground tabular-nums text-accent">
+                        {loading ? "..." : formatCurrency(data?.summary?.total_revenue || 0)}
+                    </p>
+                </div>
+            </div>
+
+            {/* Performance Charts */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Top Revenue Chart */}
+                <div className="bg-card p-8 rounded-[2.5rem] border border-border shadow-xl flex flex-col gap-6">
                     <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center text-xl">
-                                <LayoutGrid />
-                            </div>
-                            <h3 className="text-xl font-black text-gray-900 italic uppercase">Productos vendidos por día</h3>
+                        <div>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-accent mb-1">Rendimiento</p>
+                            <h3 className="text-xl font-black text-foreground uppercase tracking-tight">Top 10 por Facturación</h3>
+                        </div>
+                        <div className="w-10 h-10 rounded-xl bg-accent/10 text-accent flex items-center justify-center">
+                            <DollarSign className="w-5 h-5" />
                         </div>
                     </div>
-                    <div className="h-[300px] w-full mt-4">
+                    <div className="h-[350px] w-full">
                         {loading ? (
-                            <div className="w-full h-full flex flex-col gap-4">
-                                <div className="flex-1 flex items-end gap-2 px-4">
-                                    {[...Array(12)].map((_, i) => (
-                                        <Skeleton key={i} className="flex-1" style={{ height: `${Math.random() * 60 + 20}%` }} />
-                                    ))}
-                                </div>
-                            </div>
+                            <div className="w-full h-full bg-muted/20 animate-pulse rounded-2xl" />
                         ) : (
                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={data?.productsSoldByDay || []} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                    <XAxis
-                                        dataKey="date"
-                                        tickFormatter={(str) => str ? format(new Date(str), "d/M", { locale: es }) : ""}
-                                        axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 800, fill: '#94a3b8' }}
+                                <BarChart
+                                    data={data?.paretoData?.slice(0, 10) || []}
+                                    layout="vertical"
+                                    margin={{ top: 5, right: 30, left: 40, bottom: 5 }}
+                                >
+                                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={isDark ? "#333" : "#eee"} />
+                                    <XAxis type="number" hide />
+                                    <YAxis
+                                        dataKey="product_id"
+                                        type="category"
+                                        width={100}
+                                        tick={{ fontSize: 10, fontWeight: 900 }}
+                                        tickFormatter={(id) => {
+                                            const p = data?.paretoData?.find(item => item.product_id === id);
+                                            const name = getProductName(p?.name);
+                                            return name.length > 15 ? name.substring(0, 15) + '...' : name;
+                                        }}
+                                        stroke={isDark ? "#666" : "#999"}
                                     />
-                                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 800, fill: '#94a3b8' }} />
                                     <Tooltip
-                                        contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 20px 40px rgba(0,0,0,0.1)' }}
-                                        cursor={{ fill: '#f1f5f9', opacity: 0.4 }}
+                                        contentStyle={{ backgroundColor: isDark ? "#1a1a1a" : "#fff", borderColor: isDark ? "#333" : "#eee", borderRadius: '1rem', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                                        labelClassName="hidden"
+                                        formatter={(value: any, name: any, props: any) => [formatCurrency(value), getProductName(props.payload.name)]}
                                     />
-                                    <Bar dataKey="count" name="Vendidos" fill="#7ed4d4" radius={[4, 4, 0, 0]} />
+                                    <Bar dataKey="total_revenue" radius={[0, 4, 4, 0]} barSize={20}>
+                                        {(data?.paretoData?.slice(0, 10) || []).map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={index === 0 ? '#E00000' : index < 3 ? '#ff4d4d' : '#ff9999'} />
+                                        ))}
+                                    </Bar>
                                 </BarChart>
                             </ResponsiveContainer>
                         )}
                     </div>
                 </div>
 
-                {/* Resumen del Período KPI Grid */}
-                <div className="lg:col-span-1 bg-[#f0f9f9] rounded-[2.5rem] p-6 border border-[#e0f2f2] flex flex-col gap-6">
-                    <div className="flex items-center gap-2 mb-2">
-                        <Calendar className="w-4 h-4 text-gray-700" />
-                        <h3 className="text-sm font-black text-gray-800 uppercase italic">Resumen del período</h3>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                        {[
-                            { val: Math.round(data?.summary?.totalSold || 0), label: "productos vendidos" },
-                            { val: (data?.summary?.soldPerDay || 0).toFixed(0), label: "productos por día" },
-                            { val: (data?.summary?.soldPerOrder || 0).toFixed(1), label: "productos por venta" },
-                            { val: formatCurrency(data?.summary?.avgPricePerItem), label: "por producto (promedio)", isPrice: true }
-                        ].map((kpi, i) => (
-                            <div key={i} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col justify-between">
-                                {loading ? <Skeleton className="w-12 h-6" /> : <p className={`${kpi.isPrice ? 'text-lg' : 'text-2xl'} font-black text-gray-900 truncate`}>{kpi.val}</p>}
-                                <p className="text-[8px] font-bold text-gray-400 uppercase leading-tight mt-1">{kpi.label}</p>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </div>
-
-            {/* Inventory Health Widgets */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                {[
-                    {
-                        label: "Valor Total Inventario",
-                        val: formatCurrency(data?.health?.total_inventory_value),
-                        icon: <DollarSign />,
-                        color: "emerald",
-                        desc: "Capital inmovilizado en stock"
-                    },
-                    {
-                        label: "Días de Inventario",
-                        val: `${Math.round(data?.health?.avg_days_inventory || 0)} días`,
-                        icon: <Clock />,
-                        color: "blue",
-                        desc: "Estimación de falta de stock"
-                    },
-                    {
-                        label: "Tasa de Rotación",
-                        val: `${((data?.health?.total_stock || 0) > 0 ? (data?.categoryTreemap?.reduce((acc: number, c: any) => acc + Number(c.sold_quantity), 0) / data?.health?.total_stock * 100).toFixed(1) : 0)}%`,
-                        icon: <Activity />,
-                        color: "indigo",
-                        desc: "Ritmo de salida vs stock"
-                    }
-                ].map((kpi, i) => (
-                    <div key={i} className="bg-white rounded-[3rem] p-10 border border-gray-100 shadow-xl shadow-gray-200/50 flex flex-col gap-6 hover:translate-y-[-4px] transition-all duration-500 group">
-                        <div className={`w-16 h-16 rounded-3xl bg-${kpi.color}-50 text-${kpi.color}-600 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform`}>
-                            {kpi.icon}
-                        </div>
+                {/* Top Quantity Chart */}
+                <div className="bg-card p-8 rounded-[2.5rem] border border-border shadow-xl flex flex-col gap-6">
+                    <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-gray-400 font-black text-[10px] uppercase tracking-[0.2em] mb-1">{kpi.label}</p>
-                            {loading ? <Skeleton className="w-32 h-10" /> : <h3 className="text-4xl font-black text-gray-900 tracking-tighter">{kpi.val}</h3>}
-                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-2">{kpi.desc}</p>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600 mb-1">Volumen</p>
+                            <h3 className="text-xl font-black text-foreground uppercase tracking-tight">Top 10 por Unidades</h3>
+                        </div>
+                        <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+                            <TrendingUp className="w-5 h-5" />
                         </div>
                     </div>
-                ))}
-            </div>
-
-            {/* Pareto Analysis (Top products contributing to 80% revenue) */}
-            <div className="bg-white rounded-[4rem] p-12 border border-gray-100 shadow-2xl relative overflow-hidden group">
-                <div className="flex items-center justify-between mb-16 px-4">
-                    <div>
-                        <h3 className="text-3xl font-black text-gray-900 italic uppercase">Análisis Pareto (Top Skus)</h3>
-                        <p className="text-gray-400 font-bold text-xs uppercase tracking-widest mt-2">Detección de productos que generan el 80% de tus ingresos</p>
-                    </div>
-                </div>
-
-                <div className="h-[500px] w-full">
-                    {loading ? <Skeleton className="w-full h-full" /> : (
-                        <ResponsiveContainer width="100%" height="100%">
-                            <ComposedChart data={data?.paretoData || []}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                <XAxis
-                                    dataKey="name"
-                                    hide
-                                />
-                                <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 800 }} tickFormatter={(v) => `$${v / 1000}k`} />
-                                <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fill: '#8b5cf6', fontSize: 10, fontWeight: 800 }} tickFormatter={(v) => `${v}%`} />
-                                <Tooltip
-                                    contentStyle={{ borderRadius: '24px', border: 'none', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.2)' }}
-                                    itemStyle={{ fontWeight: 800 }}
-                                />
-                                <Bar yAxisId="left" dataKey="total_revenue" radius={[12, 12, 0, 0]} barSize={40}>
-                                    {(data?.paretoData || []).map((_: any, i: number) => (
-                                        <Cell key={i} fill={i < 10 ? '#3b82f6' : '#cbd5e1'} />
-                                    ))}
-                                </Bar>
-                                <Line yAxisId="right" type="monotone" dataKey="cumulative_percentage" stroke="#8b5cf6" strokeWidth={4} dot={{ fill: '#8b5cf6', r: 4 }} />
-                            </ComposedChart>
-                        </ResponsiveContainer>
-                    )}
-                </div>
-            </div>
-
-            {/* Treemap & Alerts */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Stock Treemap */}
-                <div className="lg:col-span-2 bg-gray-900 rounded-[4rem] p-12 shadow-2xl text-white overflow-hidden relative">
-                    <div className="flex items-center gap-6 mb-12 relative z-10">
-                        <div className="w-16 h-16 rounded-3xl bg-blue-600 flex items-center justify-center text-3xl shadow-xl shadow-blue-500/20">
-                            <LayoutGrid />
-                        </div>
-                        <div>
-                            <h3 className="text-3xl font-black italic uppercase">Distribución de Stock</h3>
-                            <p className="text-blue-300 font-bold text-sm uppercase tracking-widest">Tamaño por valor de inventario</p>
-                        </div>
-                    </div>
-
-                    <div className="h-[400px] w-full relative z-10">
-                        {loading ? <Skeleton className="w-full h-full" /> : (
+                    <div className="h-[350px] w-full">
+                        {loading ? (
+                            <div className="w-full h-full bg-muted/20 animate-pulse rounded-2xl" />
+                        ) : (
                             <ResponsiveContainer width="100%" height="100%">
-                                <Treemap
-                                    data={data?.categoryTreemap || []}
-                                    dataKey="value"
-                                    stroke="#111827"
-                                    fill="#3b82f6"
+                                <BarChart
+                                    data={data?.paretoData?.slice(0, 10).sort((a, b) => Number(b.sold_quantity) - Number(a.sold_quantity)) || []}
+                                    margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
                                 >
-                                    <Tooltip
-                                        contentStyle={{ background: '#111827', border: 'none', borderRadius: '16px' }}
-                                        formatter={(v: any) => formatCurrency(v)}
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDark ? "#333" : "#eee"} />
+                                    <XAxis
+                                        dataKey="product_id"
+                                        tick={{ fontSize: 9, fontWeight: 900 }}
+                                        tickFormatter={(id) => {
+                                            const p = data?.paretoData?.find(item => item.product_id === id);
+                                            const name = getProductName(p?.name);
+                                            return name.length > 8 ? name.substring(0, 8) + '...' : name;
+                                        }}
+                                        stroke={isDark ? "#666" : "#999"}
                                     />
-                                </Treemap>
+                                    <YAxis stroke={isDark ? "#666" : "#999"} tick={{ fontSize: 10 }} />
+                                    <Tooltip
+                                        contentStyle={{ backgroundColor: isDark ? "#1a1a1a" : "#fff", border: 'none', borderRadius: '1rem', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                                        labelClassName="hidden"
+                                        formatter={(value: any, name: any, props: any) => [value + ' unidades', getProductName(props.payload.name)]}
+                                    />
+                                    <Bar dataKey="sold_quantity" radius={[4, 4, 0, 0]} barSize={40}>
+                                        {(data?.paretoData?.slice(0, 10) || []).map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={index === 0 ? '#10b981' : index < 3 ? '#34d399' : '#a7f3d0'} />
+                                        ))}
+                                    </Bar>
+                                </BarChart>
                             </ResponsiveContainer>
                         )}
                     </div>
                 </div>
+            </div>
 
-                {/* Stock-out Alerts */}
-                <div className="bg-rose-600 rounded-[4rem] p-12 shadow-2xl text-white flex flex-col">
-                    <div className="flex items-center gap-6 mb-12">
-                        <div className="w-16 h-16 rounded-3xl bg-white/20 flex items-center justify-center text-3xl">
-                            <AlertCircle />
-                        </div>
-                        <div>
-                            <h3 className="text-2xl font-black italic uppercase">Riesgo Quiebre</h3>
-                            <p className="text-rose-200 font-bold text-[10px] uppercase tracking-widest mt-2">Productos que se agotan en &lt; 7 días</p>
-                        </div>
+            {/* Main Content */}
+            <div className="flex flex-col gap-6">
+                {/* Search & Filters Bar */}
+                <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-card p-4 rounded-3xl border border-border shadow-sm">
+                    <div className="relative w-full md:w-96">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <input
+                            type="text"
+                            placeholder="Buscar producto..."
+                            value={searchTerm}
+                            onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                            className="w-full pl-12 pr-4 py-3 bg-muted/50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-accent/50 outline-none transition-all"
+                        />
                     </div>
 
-                    <div className="flex flex-col gap-6 flex-1">
-                        {loading ? <Skeleton className="w-full h-32 rounded-3xl" /> : (
-                            data?.alerts?.length > 0 ? (
-                                data.alerts.map((alert: any, i: number) => (
-                                    <div key={i} className="flex flex-col gap-2 p-6 rounded-3xl bg-white/10 border border-white/10">
-                                        <span className="text-xs font-black uppercase truncate">{alert.name}</span>
-                                        <div className="flex justify-between items-end">
-                                            <div>
-                                                <p className="text-2xl font-black">{Math.round(alert.days_left)}</p>
-                                                <p className="text-[10px] font-bold text-rose-200 uppercase tracking-widest">días restantes</p>
+                    <div className="flex items-center gap-4">
+                        <div className="flex bg-muted/50 p-1.5 rounded-2xl border border-border">
+                            {(['all', 'active', 'inactive'] as const).map((s) => (
+                                <button
+                                    key={s}
+                                    onClick={() => { setStatusFilter(s); setCurrentPage(1); }}
+                                    className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${statusFilter === s
+                                        ? 'bg-card text-accent shadow-sm ring-1 ring-border'
+                                        : 'text-muted-foreground hover:text-foreground'
+                                        }`}
+                                >
+                                    {s === 'all' ? 'Todos' : s === 'active' ? 'Activos' : 'Inactivos'}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Table Container */}
+                <div className="bg-card rounded-[2.5rem] border border-border shadow-xl overflow-hidden">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="bg-muted/50 text-muted-foreground border-b border-border">
+                                    <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest">Nombre del Producto</th>
+                                    <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-center">Variantes</th>
+                                    <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-center">Estado</th>
+                                    <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-right">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border">
+                                {loading ? (
+                                    Array(5).fill(0).map((_, i) => (
+                                        <tr key={i} className="animate-pulse">
+                                            <td className="px-8 py-6"><Skeleton className="h-5 w-48" /></td>
+                                            <td className="px-8 py-6"><Skeleton className="h-5 w-12 mx-auto" /></td>
+                                            <td className="px-8 py-6"><Skeleton className="h-5 w-20 mx-auto" /></td>
+                                            <td className="px-8 py-6"><Skeleton className="h-5 w-8 ml-auto" /></td>
+                                        </tr>
+                                    ))
+                                ) : paginatedProducts.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={4} className="px-8 py-20 text-center">
+                                            <div className="flex flex-col items-center gap-3 opacity-40">
+                                                <Package className="w-12 h-12" />
+                                                <p className="font-black uppercase tracking-widest text-xs">No se encontraron productos</p>
                                             </div>
-                                            <div className="text-right">
-                                                <p className="text-xs font-bold">{alert.stock} unidades</p>
-                                                <p className="text-[10px] font-bold text-rose-200 uppercase tracking-widest">Stock actual</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))
-                            ) : (
-                                <div className="flex-1 flex flex-col items-center justify-center opacity-50">
-                                    <Package className="w-16 h-16 mb-4" />
-                                    <p className="text-sm font-black uppercase italic">Todo bajo control</p>
-                                </div>
-                            )
-                        )}
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    paginatedProducts.map((p) => (
+                                        <tr key={p.id} className="hover:bg-muted/30 transition-colors group">
+                                            <td className="px-8 py-6">
+                                                <span className="font-bold text-foreground text-sm uppercase tracking-tight group-hover:text-accent transition-colors">
+                                                    {getProductName(p.name)}
+                                                </span>
+                                            </td>
+                                            <td className="px-8 py-6 text-center tabular-nums">
+                                                <div className="inline-flex items-center justify-center px-4 py-1.5 bg-muted rounded-full text-xs font-black text-foreground">
+                                                    {p.variant_count}
+                                                </div>
+                                            </td>
+                                            <td className="px-8 py-6 text-center">
+                                                <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${p.published
+                                                    ? 'bg-emerald-500/10 text-emerald-500'
+                                                    : 'bg-muted text-muted-foreground'
+                                                    }`}>
+                                                    {p.published ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                                                    {p.published ? 'Activo' : 'Inactivo'}
+                                                </div>
+                                            </td>
+                                            <td className="px-8 py-6 text-right flex justify-end gap-2">
+                                                {data?.adminDomain && (
+                                                    <a
+                                                        href={`https://${data.adminDomain}/admin/products/${p.id}`}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="p-2.5 rounded-xl bg-accent text-white hover:bg-black transition-all shadow-sm"
+                                                        title="Ver en TiendaNube"
+                                                    >
+                                                        <Package className="w-4 h-4" />
+                                                    </a>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
                     </div>
 
-                    <button className="mt-8 w-full py-6 rounded-[2rem] bg-white text-rose-600 font-black uppercase tracking-widest text-xs hover:bg-rose-50 transition-colors">
-                        Ver sugerencia de compra
-                    </button>
+                    {/* Pagination */}
+                    {totalPages > 1 && (
+                        <div className="bg-muted/20 border-t border-border px-8 py-5 flex items-center justify-between">
+                            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                                Página {currentPage} de {totalPages} • {filteredProducts.length} productos
+                            </p>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                    disabled={currentPage === 1}
+                                    className="p-2 rounded-xl bg-card border border-border disabled:opacity-30 hover:border-accent transition-colors"
+                                >
+                                    <ChevronLeft className="w-4 h-4" />
+                                </button>
+                                <button
+                                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                    disabled={currentPage === totalPages}
+                                    className="p-2 rounded-xl bg-card border border-border disabled:opacity-30 hover:border-accent transition-colors"
+                                >
+                                    <ChevronRight className="w-4 h-4" />
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
+
+            {/* Error state */}
+            {error && (
+                <div className="bg-rose-500/10 border border-rose-500/30 rounded-[2rem] p-6 flex items-center gap-4">
+                    <AlertTriangle className="w-8 h-8 text-rose-500 shrink-0" />
+                    <div>
+                        <p className="font-black text-rose-500 uppercase text-xs tracking-widest">Error al cargar datos</p>
+                        <p className="text-sm text-muted-foreground mt-1">{error}</p>
+                    </div>
+                </div>
+            )}
         </section>
     );
 }

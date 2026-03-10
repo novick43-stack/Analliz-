@@ -3,6 +3,8 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import SidebarNav from "./sidebar-nav";
+import ThemeToggle from "@/components/ui/ThemeToggle";
+import { Settings, LogOut, Layout, CreditCard, ChevronDown, Menu, X, Sparkles } from "lucide-react";
 
 export default function DashboardShell({
     children,
@@ -11,7 +13,7 @@ export default function DashboardShell({
     children: React.ReactNode;
     user: any;
 }) {
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const settingsRef = useRef<HTMLDivElement>(null);
 
@@ -27,72 +29,100 @@ export default function DashboardShell({
     }, []);
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+        <div className="min-h-screen bg-background text-foreground transition-colors duration-500 font-sans selection:bg-accent/30">
             {/* Header / Navigation */}
-            <nav className="bg-white/80 backdrop-blur-md border-b border-gray-100 sticky top-0 z-20 transition-all duration-300">
-                <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-12">
+            <nav className="bg-background/80 backdrop-blur-xl border-b border-border sticky top-0 z-50 transition-all duration-300">
+                <div className="max-w-full mx-auto px-6 lg:px-8">
                     <div className="flex justify-between h-16">
                         <div className="flex items-center gap-4">
-                            {/* Hamburger Button: Circle with 3 lines */}
+                            {/* Toggle Sidebar */}
                             <button
                                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                                className="w-10 h-10 rounded-full bg-blue-50 hover:bg-blue-100 flex items-center justify-center transition-all duration-200 border border-blue-100 group"
+                                className="w-9 h-9 rounded-xl bg-muted hover:bg-accent/10 flex items-center justify-center transition-all duration-300 border border-border group active:scale-95"
                                 aria-label="Toggle Sidebar"
                             >
-                                <div className="flex flex-col gap-1 w-5 items-center">
-                                    <span className={`h-0.5 w-full bg-blue-600 rounded-full transition-all ${isSidebarOpen ? 'rotate-45 translate-y-1.5' : ''}`}></span>
-                                    <span className={`h-0.5 w-full bg-blue-600 rounded-full transition-all ${isSidebarOpen ? 'opacity-0' : ''}`}></span>
-                                    <span className={`h-0.5 w-full bg-blue-600 rounded-full transition-all ${isSidebarOpen ? '-rotate-45 -translate-y-1.5' : ''}`}></span>
-                                </div>
+                                {isSidebarOpen ? (
+                                    <X className="w-4 h-4 text-foreground group-hover:text-accent transition-colors" />
+                                ) : (
+                                    <Menu className="w-4 h-4 text-foreground group-hover:text-accent transition-colors" />
+                                )}
                             </button>
 
                             <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center shadow-sm">
-                                    <span className="text-white font-bold text-sm">A</span>
+                                <div className="w-8 h-8 rounded-xl bg-accent flex items-center justify-center shadow-lg shadow-accent/20">
+                                    <Sparkles className="text-white w-5 h-5" />
                                 </div>
-                                <Link href="/dashboard" className="text-xl font-bold text-gray-800 tracking-tight hover:text-blue-600 transition-colors">
+                                <Link href="/dashboard" className="text-xl font-black text-foreground tracking-tight hover:opacity-80 transition-opacity uppercase">
                                     Analliz
                                 </Link>
+                                <div className="hidden md:flex items-center px-2 py-0.5 rounded-full bg-accent/10 border border-accent/20">
+                                    <span className="text-[8px] font-bold text-accent uppercase tracking-widest">v2.0</span>
+                                </div>
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-4">
-                            <div className="flex items-center gap-4 relative" ref={settingsRef}>
-                                {/* Avatar */}
-                                {user.picture && (
-                                    <img
-                                        src={user.picture}
-                                        alt="Avatar"
-                                        className="w-9 h-9 rounded-full border-2 border-white shadow-sm"
-                                    />
-                                )}
+                        <div className="flex items-center gap-3">
+                            {/* Theme Toggle */}
+                            <ThemeToggle />
 
-                                {/* Settings Cog */}
+                            <div className="h-6 w-[1px] bg-border mx-1"></div>
+
+                            <div className="flex items-center gap-2 relative" ref={settingsRef}>
+                                {/* User Info (Desktop) */}
+                                <div className="hidden lg:flex flex-col items-end mr-1">
+                                    <p className="text-xs font-bold text-foreground leading-none">{user.name}</p>
+                                    <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest mt-1">Admin</p>
+                                </div>
+
+                                {/* Avatar Button */}
                                 <button
                                     onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-                                    className="w-10 h-10 rounded-full bg-gray-50 hover:bg-gray-100 flex items-center justify-center transition-all duration-200 border border-gray-100 group"
+                                    className="flex items-center gap-1.5 p-1 rounded-xl border border-border bg-muted hover:bg-accent/10 transition-all active:scale-95"
                                 >
-                                    <svg className={`w-6 h-6 text-gray-600 group-hover:rotate-90 transition-transform duration-500 ${isSettingsOpen ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                    </svg>
+                                    {user.picture && (
+                                        <img
+                                            src={user.picture}
+                                            alt="Avatar"
+                                            className="w-8 h-8 rounded-[10px] object-cover"
+                                        />
+                                    )}
+                                    <ChevronDown className={`w-3 h-3 text-muted-foreground mr-0.5 transition-transform duration-300 ${isSettingsOpen ? 'rotate-180' : ''}`} />
                                 </button>
-
+                                {/* ... settings popup skipped ... */}
                                 {/* Settings Popup */}
                                 {isSettingsOpen && (
-                                    <div className="absolute right-0 top-14 w-64 bg-white rounded-2xl shadow-2xl border border-gray-100 py-3 animate-in fade-in zoom-in duration-200 overflow-hidden">
-                                        <div className="px-4 py-3 border-b border-gray-50 mb-2">
-                                            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Configuración</p>
+                                    <div className="absolute right-0 top-[120%] w-64 bg-card rounded-[1.5rem] shadow-2xl border border-border p-2 flex flex-col gap-0.5 animate-in fade-in slide-in-from-top-4 duration-300 z-50">
+                                        <div className="px-4 py-3 border-b border-border mb-1">
+                                            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em]">Logged in as</p>
+                                            <p className="text-xs font-bold text-foreground mt-0.5 truncate">{user.email}</p>
                                         </div>
-                                        <Link href="/dashboard/settings" className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors">
-                                            <span>⚙️</span> Ajustes Generales
+
+                                        <Link
+                                            href="/dashboard/settings"
+                                            className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold text-muted-foreground hover:bg-muted hover:text-accent transition-all group"
+                                            onClick={() => setIsSettingsOpen(false)}
+                                        >
+                                            <Settings className="w-4 h-4 group-hover:rotate-180 transition-transform duration-700" />
+                                            Ajustes de Cuenta
                                         </Link>
-                                        <Link href="/dashboard/plans" className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors">
-                                            <span>💎</span> Elegir Plan
+
+                                        <Link
+                                            href="/dashboard/plans"
+                                            className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold text-muted-foreground hover:bg-muted hover:text-accent transition-all group"
+                                            onClick={() => setIsSettingsOpen(false)}
+                                        >
+                                            <CreditCard className="w-4 h-4" />
+                                            Suscripción
                                         </Link>
-                                        <div className="h-px bg-gray-50 my-2"></div>
-                                        <a href="/auth/logout" className="flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors">
-                                            <span>🚪</span> Cerrar Sesión
+
+                                        <div className="h-px bg-border my-1.5 px-4"></div>
+
+                                        <a
+                                            href="/auth/logout"
+                                            className="flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-black text-rose-500 hover:bg-rose-500/10 transition-all uppercase tracking-widest"
+                                        >
+                                            <LogOut className="w-4 h-4" />
+                                            Cerrar Sesión
                                         </a>
                                     </div>
                                 )}
@@ -103,20 +133,20 @@ export default function DashboardShell({
             </nav>
 
             {/* Main Content Area */}
-            <main className="max-w-full mx-auto py-12 px-4 sm:px-6 lg:px-12 relative">
-                <div className="flex gap-8 items-start">
+            <main className="max-w-full mx-auto py-6 px-6 lg:px-10 relative">
+                <div className="flex gap-6 items-start">
                     {/* Sidebar with Transition */}
                     <aside
                         className={`transition-all duration-500 ease-in-out ${isSidebarOpen
                             ? "w-72 opacity-100 translate-x-0"
-                            : "w-0 opacity-0 -translate-x-10 pointer-events-none"
-                            } overflow-hidden`}
+                            : "w-0 opacity-0 -translate-x-12 pointer-events-none"
+                            } overflow-hidden sticky top-24`}
                     >
                         <SidebarNav closeSidebar={() => setIsSidebarOpen(false)} />
                     </aside>
 
                     {/* Page Content */}
-                    <div className="flex-1 transition-all duration-500">
+                    <div className="flex-1 transition-all duration-500 min-w-0">
                         {children}
                     </div>
                 </div>

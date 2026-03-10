@@ -1,7 +1,9 @@
 import { auth0 } from "@/lib/auth0";
 import { NextResponse } from "next/server";
-import { getTiendaNubeConnection, getTiendaNubeOrders, getTiendaNubeProducts } from "@/lib/tiendanube";
+import { getTiendaNubeConnection } from "@/lib/tiendanube";
 import { sql } from "@/lib/db";
+
+export const maxDuration = 30;
 
 export async function GET() {
     try {
@@ -10,47 +12,62 @@ export async function GET() {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        // 1. Get database user
         const userResult = await sql`SELECT id FROM users WHERE auth0_id = ${session.user.sub}`;
         const userId = userResult[0]?.id;
         if (!userId) {
             return NextResponse.json({ error: "User not found in database" }, { status: 404 });
         }
 
-        // 2. Get Tienda Nube connection
         const connection = await getTiendaNubeConnection(userId);
         if (!connection) {
             return NextResponse.json({ error: "Tienda Nube not connected" }, { status: 400 });
         }
 
-        // 3. Fetch real data (limiting for speed in this demo/standardized report)
-        const [orders, products] = await Promise.all([
-            getTiendaNubeOrders(connection.store_id, connection.access_token, 30),
-            getTiendaNubeProducts(connection.store_id, connection.access_token, 30)
+        // Read report data from local DB (fast) instead of live API (slow/timeout)
+        const [ordersResult, productsResult, topProductsResult] = await Promise.all([
+            sql`
+                SELECT 
+                    COUNT(id) as order_count,
+                    COALESCE(SUM(total), 0) as total_sales,
+                    COALESCE(AVG(total), 0) as avg_order_value
+                FROM tn_orders
+                WHERE user_id = ${userId}
+            `,
+            sql`
+                SELECT COUNT(id) as product_count
+                FROM tn_products
+                WHERE user_id = ${userId}
+            `,
+            sql`
+                SELECT i.name, SUM(i.price * i.quantity) as revenue
+                FROM tn_order_items i
+                JOIN tn_orders o ON i.order_id = o.id
+                WHERE o.user_id = ${userId}
+                GROUP BY i.name
+                ORDER BY revenue DESC
+                LIMIT 3
+            `,
         ]);
 
-        // 4. Process data for the "Standardized Report"
-        // In a real scenario, this would go to an IA. For now, we mock the INSIGHTS
-        // but use the REAL numbers from the fetched data.
+        const orderCount = Number(ordersResult[0]?.order_count || 0);
+        const totalSales = Number(ordersResult[0]?.total_sales || 0);
+        const avgOrderValue = Number(ordersResult[0]?.avg_order_value || 0);
+        const productCount = Number(productsResult[0]?.product_count || 0);
 
-        const totalSales = orders.reduce((acc: number, order: any) => acc + parseFloat(order.total || 0), 0);
-        const avgOrderValue = orders.length > 0 ? totalSales / orders.length : 0;
-        const totalProducts = products.length;
-
-        // Mocked IA Analysis based on real stats
         const reportData = {
             storeName: connection.store_name || "Mi Tienda",
             stats: {
-                period: "Últimos 30 pedidos",
+                period: "Datos históricos sincronizados",
                 totalSales: totalSales.toFixed(2),
-                orderCount: orders.length,
+                orderCount,
                 avgOrderValue: avgOrderValue.toFixed(2),
-                productCount: totalProducts
+                productCount,
             },
+            topProducts: topProductsResult,
             pages: [
                 {
                     title: "Resumen Ejecutivo",
-                    content: `Tu tienda ${connection.store_name || 'Tienda Nube'} ha procesado ${orders.length} pedidos recientemente con un ticket promedio de $${avgOrderValue.toFixed(2)}. Observamos un potencial de crecimiento del 15% optimizando la tasa de conversión en dispositivos móviles.`
+                    content: `Tu tienda ${connection.store_name || 'Tienda Nube'} ha procesado ${orderCount} pedidos con un ticket promedio de $${avgOrderValue.toFixed(2)}. Observamos un potencial de crecimiento del 15% optimizando la tasa de conversión en dispositivos móviles.`
                 },
                 {
                     title: "Análisis de Ventas",
@@ -58,7 +75,7 @@ export async function GET() {
                 },
                 {
                     title: "Inventario y Productos",
-                    content: `Cuentas con ${totalProducts} productos activos. El 20% de tus productos genera el 80% de tus ingresos. Recomendamos revisar el stock de los 3 productos con mayor rotación.`
+                    content: `Cuentas con ${productCount} productos activos. El 20% de tus productos genera el 80% de tus ingresos. Recomendamos revisar el stock de los 3 productos con mayor rotación.`
                 },
                 {
                     title: "Comportamiento del Cliente",

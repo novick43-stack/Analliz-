@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { sql } from "@/lib/db";
 import { startOfMonth, endOfMonth, subMonths } from "date-fns";
 
+export const maxDuration = 30;
+
 export async function GET() {
     try {
         const session = await auth0.getSession();
@@ -14,57 +16,62 @@ export async function GET() {
         const userId = userResult[0]?.id;
         if (!userId) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-        // 1. Core KPIs (Current Month vs Previous Month)
+        // Date ranges
         const now = new Date();
         const startCurrent = startOfMonth(now).toISOString();
         const startPrev = startOfMonth(subMonths(now, 1)).toISOString();
         const endPrev = endOfMonth(subMonths(now, 1)).toISOString();
 
-        const curKpis = await sql`
-            SELECT 
-                SUM(total) as revenue,
-                COUNT(id) as orders
-            FROM tn_orders
-            WHERE user_id = ${userId}
-            AND created_at >= ${startCurrent}
-        `;
+        // Run all summary queries in parallel
+        const [curKpis, prevKpis, topProducts, inventoryAlerts, customerStats] = await Promise.all([
+            // 1. Current month KPIs
+            sql`
+                SELECT 
+                    SUM(total) as revenue,
+                    COUNT(id) as orders
+                FROM tn_orders
+                WHERE user_id = ${userId}
+                AND created_at >= ${startCurrent}
+            `,
 
-        const prevKpis = await sql`
-            SELECT 
-                SUM(total) as revenue,
-                COUNT(id) as orders
-            FROM tn_orders
-            WHERE user_id = ${userId}
-            AND created_at >= ${startPrev}
-            AND created_at <= ${endPrev}
-        `;
+            // 2. Previous month KPIs
+            sql`
+                SELECT 
+                    SUM(total) as revenue,
+                    COUNT(id) as orders
+                FROM tn_orders
+                WHERE user_id = ${userId}
+                AND created_at >= ${startPrev}
+                AND created_at <= ${endPrev}
+            `,
 
-        // 2. Top Products (Pareto snapshot)
-        const topProducts = await sql`
-            SELECT name, SUM(price * quantity) as revenue
-            FROM tn_order_items i
-            JOIN tn_orders o ON i.order_id = o.id
-            WHERE o.user_id = ${userId}
-            GROUP BY name
-            ORDER BY revenue DESC
-            LIMIT 3
-        `;
+            // 3. Top Products (Pareto snapshot)
+            sql`
+                SELECT name, SUM(price * quantity) as revenue
+                FROM tn_order_items i
+                JOIN tn_orders o ON i.order_id = o.id
+                WHERE o.user_id = ${userId}
+                GROUP BY name
+                ORDER BY revenue DESC
+                LIMIT 3
+            `,
 
-        // 3. Inventory Urgency
-        const inventoryAlerts = await sql`
-            SELECT COUNT(*) as count
-            FROM tn_variants v
-            JOIN tn_products p ON v.product_id = p.id
-            WHERE p.user_id = ${userId}
-            AND v.stock < 10
-        `;
+            // 4. Inventory Urgency
+            sql`
+                SELECT COUNT(*) as count
+                FROM tn_variants v
+                JOIN tn_products p ON v.product_id = p.id
+                WHERE p.user_id = ${userId}
+                AND v.stock < 10
+            `,
 
-        // 4. Customer Health
-        const customerStats = await sql`
-            SELECT AVG(total_spent) as ltv, COUNT(id) as total
-            FROM tn_customers
-            WHERE user_id = ${userId}
-        `;
+            // 5. Customer Health
+            sql`
+                SELECT AVG(total_spent) as ltv, COUNT(id) as total
+                FROM tn_customers
+                WHERE user_id = ${userId}
+            `,
+        ]);
 
         return NextResponse.json({
             sales: {

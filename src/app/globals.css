@@ -1,82 +1,75 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500;1,600;1,700;1,800&display=swap');
+
 @import "tailwindcss";
 @source "../";
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@theme {
+  --font-sans: "Inter", sans-serif;
+  --font-jakarta: "Plus Jakarta Sans", sans-serif;
 
-:root {
+  --color-background: #ffffff;
+  --color-foreground: #020617;
+  --color-muted: #f1f5f9;
+  --color-muted-foreground: #64748b;
+  --color-card: #ffffff;
+  --color-card-foreground: #020617;
+  --color-border: #e2e8f0;
+  --color-accent: #5841D8;
+  --color-accent-foreground: #ffffff;
+
   --radius-xl: 1rem;
   --radius-2xl: 1.5rem;
   --radius-3xl: 2rem;
-  --shadow-premium: 0 4px 20px -5px rgba(0, 0, 0, 0.05);
+  --radius-4xl: 3.5rem;
+
+  --shadow-premium: 0 10px 40px -10px rgba(0, 0, 0, 0.05);
 }
 
-body {
-  color: #111827;
-  background: #f9fafb;
-  font-family: Inter, sans-serif;
-  font-size: 0.875rem;
-  /* Smaller base font (14px) */
-  line-height: 1.4;
+@layer base {
+  :root {
+    --color-background: #020617;
+    --color-foreground: #f8fafc;
+    --color-muted: #0f172a;
+    --color-muted-foreground: #94a3b8;
+    --color-card: #020617;
+    --color-card-foreground: #f8fafc;
+    --color-border: #1e293b;
+    --color-accent: #5841D8;
+    --color-accent-foreground: #ffffff;
+  }
+
+  .light {
+    --color-background: #ffffff;
+    --color-foreground: #020617;
+    --color-muted: #f1f5f9;
+    --color-muted-foreground: #64748b;
+    --color-card: #ffffff;
+    --color-card-foreground: #020617;
+    --color-border: #e2e8f0;
+    --color-accent: #5841D8;
+    --color-accent-foreground: #ffffff;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: var(--font-sans);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-jakarta font-black tracking-tight uppercase;
+  }
 }
 
-/* Global Density Adjustments */
-.flex.flex-col.gap-12 {
-  gap: 1.5rem !important;
-}
-
-.flex.flex-col.gap-10 {
-  gap: 1.25rem !important;
-}
-
-/* Reducing large headers */
-h2.text-6xl {
-  font-size: 2.25rem !important;
-  letter-spacing: -0.02em;
-}
-
-/* Sidebar adjustments for more density */
-aside nav {
-  padding: 0.75rem !important;
-}
-
-aside button,
-aside a {
-  padding: 0.4rem 0.6rem !important;
-  margin-bottom: 0.15rem !important;
-}
-
-/* Card adjustments */
-.bg-white.rounded-\[3rem\],
-.bg-white.rounded-\[4rem\],
-.bg-white.rounded-\[2\.5rem\] {
-  border-radius: var(--radius-xl) !important;
-}
-
-.p-10,
-.p-12,
-.p-8 {
-  padding: 1.25rem !important;
-}
-
-.mb-16 {
-  margin-bottom: 1.5rem !important;
-}
-
-/* Chart heights */
-.h-\[400px\],
-.h-\[500px\] {
-  height: 300px !important;
-}
-
-/* KPI Cards density */
-.grid.grid-cols-1.md\:grid-cols-3.gap-8,
-.grid.grid-cols-1.md\:grid-cols-3.gap-6 {
-  gap: 1rem !important;
-}
-
-/* Skeleton Shimmer Animation */
+/* Animations */
 @keyframes shimmer {
   0% {
     background-position: -200% 0;
@@ -88,40 +81,20 @@ aside a {
 }
 
 .animate-shimmer {
-  background: linear-gradient(90deg, #f1f5f9 25%, #f8fafc 50%, #f1f5f9 75%);
+  background: linear-gradient(90deg, var(--color-muted) 25%, var(--color-background) 50%, var(--color-muted) 75%);
   background-size: 200% 100%;
   animation: shimmer 2s infinite linear;
 }
 
-/* Glassmorphism Light */
-.glass-card-light {
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.04);
-}
-
-.bg-mesh-light {
-  background-color: #ffffff;
-  background-image:
-    radial-gradient(at 0% 0%, hsla(210, 100%, 98%, 1) 0, transparent 50%),
-    radial-gradient(at 50% 0%, hsla(220, 100%, 97%, 1) 0, transparent 50%),
-    radial-gradient(at 100% 0%, hsla(230, 100%, 96%, 1) 0, transparent 50%);
-  background-attachment: fixed;
-}
-
 @keyframes float {
-  0% {
+
+  0%,
+  100% {
     transform: translateY(0px);
   }
 
   50% {
     transform: translateY(-10px);
-  }
-
-  100% {
-    transform: translateY(0px);
   }
 }
 
@@ -129,6 +102,11 @@ aside a {
   animation: float 6s ease-in-out infinite;
 }
 
-.dark .animate-shimmer {
-  background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+/* Custom Utilities */
+.glass-card {
+  @apply backdrop-blur-xl bg-background/80 border border-border;
+}
+
+.text-gradient {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-accent to-indigo-500;
 }

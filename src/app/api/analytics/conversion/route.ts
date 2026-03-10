@@ -2,6 +2,8 @@ import { auth0 } from "@/lib/auth0";
 import { NextResponse } from "next/server";
 import { sql } from "@/lib/db";
 
+export const maxDuration = 30;
+
 export async function GET(request: Request) {
     try {
         const session = await auth0.getSession();
@@ -17,32 +19,54 @@ export async function GET(request: Request) {
         const userId = userResult[0]?.id;
         if (!userId) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-        const dateFilter = from && to ? sql`AND created_at >= ${from}::timestamp AND created_at <= ${to}::timestamp` : sql``;
+        // Default to "This Week" (Monday to Now) if no range is provided
+        let fromDate = from;
+        let toDate = to;
+        let isDefault = false;
 
-        // 1. Order Status Funnel
-        const statusFunnel = await sql`
-            SELECT 
-                status,
-                payment_status,
-                shipping_status,
-                COUNT(id) as count,
-                SUM(total) as revenue
-            FROM tn_orders
-            WHERE user_id = ${userId}
-            ${dateFilter}
-            GROUP BY status, payment_status, shipping_status
-        `;
+        if (!fromDate || !toDate) {
+            const now = new Date();
+            const dFrom = new Date(now.getFullYear(), now.getMonth(), 1);
+            dFrom.setUTCHours(0, 0, 0, 0);
 
-        // 2. Conversion KPIs (Orders / Unique customers ratio as a proxy if visits are not available)
-        const summary = await sql`
-            SELECT 
-                COUNT(DISTINCT id) as total_orders,
-                COUNT(DISTINCT customer_id) as unique_customers,
-                SUM(total) as revenue
-            FROM tn_orders
-            WHERE user_id = ${userId}
-            ${dateFilter}
-        `;
+            fromDate = dFrom.toISOString();
+            toDate = now.toISOString();
+            isDefault = true;
+        }
+
+        // If it's just a date (YYYY-MM-DD), make sure it covers the whole day
+        const finalFrom = fromDate.length === 10 ? `${fromDate} 00:00:00` : fromDate;
+        const finalTo = toDate.length === 10 ? `${toDate} 23:59:59` : toDate;
+
+        console.log(`[CONVERSION_DEBUG] User: ${userId} | From: ${finalFrom} | To: ${finalTo} | Default: ${isDefault}`);
+
+        // Run both queries in parallel
+        const [statusFunnel, summary] = await Promise.all([
+            // 1. Order Status Funnel
+            sql`
+                SELECT 
+                    status,
+                    payment_status,
+                    shipping_status,
+                    COUNT(id) as count,
+                    SUM(total) as revenue
+                FROM tn_orders
+                WHERE user_id = ${userId}
+                AND created_at >= ${finalFrom}::timestamptz AND created_at <= ${finalTo}::timestamptz
+                GROUP BY status, payment_status, shipping_status
+            `,
+
+            // 2. Conversion KPIs
+            sql`
+                SELECT 
+                    COUNT(DISTINCT id) as total_orders,
+                    COUNT(DISTINCT customer_id) as unique_customers,
+                    SUM(total) as revenue
+                FROM tn_orders
+                WHERE user_id = ${userId}
+                AND created_at >= ${finalFrom}::timestamptz AND created_at <= ${finalTo}::timestamptz
+            `,
+        ]);
 
         return NextResponse.json({
             statusFunnel,

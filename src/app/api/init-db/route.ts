@@ -1,53 +1,75 @@
 import { sql } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { initializeTiendaNubeSyncTables } from "@/lib/tiendanube";
+import { initializeTiendaNubeSyncTables, runMigrations } from "@/lib/tiendanube";
 
 export async function GET() {
     try {
-        // ... previous basic tables ...
-        await initializeTiendaNubeSyncTables();
-        // Create users table
-        await sql`
-            CREATE TABLE IF NOT EXISTS users (
-                id SERIAL PRIMARY KEY,
-                auth0_id VARCHAR(255) UNIQUE NOT NULL,
-                email VARCHAR(255),
-                name VARCHAR(255),
-                nickname VARCHAR(255),
-                last_login TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-            )
-        `;
+        // Initialize sync tables and core tables in parallel
+        await Promise.all([
+            initializeTiendaNubeSyncTables(),
+            sql`
+                CREATE TABLE IF NOT EXISTS users (
+                    id SERIAL PRIMARY KEY,
+                    auth0_id VARCHAR(255) UNIQUE NOT NULL,
+                    email VARCHAR(255),
+                    name VARCHAR(255),
+                    nickname VARCHAR(255),
+                    last_login TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                )
+            `,
+            sql`
+                CREATE TABLE IF NOT EXISTS login_events (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                    auth0_id VARCHAR(255) NOT NULL,
+                    email VARCHAR(255),
+                    name VARCHAR(255),
+                    login_timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                    ip_address VARCHAR(45),
+                    user_agent TEXT
+                )
+            `,
+            sql`
+                CREATE TABLE IF NOT EXISTS tiendanube_connections (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                    auth0_id VARCHAR(255) NOT NULL,
+                    store_id VARCHAR(255) UNIQUE NOT NULL,
+                    access_token VARCHAR(500) NOT NULL,
+                    store_name VARCHAR(255),
+                    connected_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                )
+            `,
+            sql`
+                CREATE TABLE IF NOT EXISTS costs_general (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                    type TEXT CHECK (type IN ('fijo', 'variable', 'comision')),
+                    category TEXT NOT NULL,
+                    amount DECIMAL(15, 2) NOT NULL,
+                    start_date DATE NOT NULL,
+                    end_date DATE NOT NULL,
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                )
+            `,
+            sql`
+                CREATE TABLE IF NOT EXISTS product_costs (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                    product_id TEXT NOT NULL,
+                    variant_id TEXT NOT NULL,
+                    cost_price DECIMAL(15, 2) NOT NULL,
+                    currency TEXT DEFAULT 'ARS',
+                    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(user_id, variant_id)
+                )
+            `,
+        ]);
 
-        // Create login_events table
-        await sql`
-            CREATE TABLE IF NOT EXISTS login_events (
-                id SERIAL PRIMARY KEY,
-                user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-                auth0_id VARCHAR(255) NOT NULL,
-                email VARCHAR(255),
-                name VARCHAR(255),
-                login_timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-                ip_address VARCHAR(45),
-                user_agent TEXT
-            )
-        `;
-
-        // Create tiendanube_connections table
-        await sql`
-            CREATE TABLE IF NOT EXISTS tiendanube_connections (
-                id SERIAL PRIMARY KEY,
-                user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-                auth0_id VARCHAR(255) NOT NULL,
-                store_id VARCHAR(255) UNIQUE NOT NULL,
-                access_token VARCHAR(500) NOT NULL,
-                store_name VARCHAR(255),
-                connected_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-            )
-        `;
-
-
+        // Run schema migrations (column additions) after tables exist
+        await runMigrations();
         return NextResponse.json({
             success: true,
             message: "Database tables initialized successfully"

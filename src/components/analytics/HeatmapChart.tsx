@@ -1,11 +1,17 @@
 "use client";
 
+import { useTheme } from "next-themes";
+import Skeleton from "@/components/ui/Skeleton";
+
 interface HeatmapChartProps {
     data: { day: number; hour: number; count: number; revenue: number }[];
     loading?: boolean;
 }
 
 export default function HeatmapChart({ data, loading }: HeatmapChartProps) {
+    const { theme } = useTheme();
+    const isDark = theme === "dark";
+
     const days = [
         { id: 1, label: "Lun" },
         { id: 2, label: "Mar" },
@@ -22,59 +28,59 @@ export default function HeatmapChart({ data, loading }: HeatmapChartProps) {
 
     const getOpacity = (dayId: number, hour: number) => {
         const item = data.find(d => Number(d.day) === dayId && Number(d.hour) === hour);
-        if (!item) return 0.05;
-        return 0.1 + (Number(item.count) / maxCount) * 0.9;
+        if (!item) return isDark ? 0.03 : 0.05;
+        return 0.15 + (Number(item.count) / maxCount) * 0.85;
     };
 
     const getTooltip = (dayId: number, hour: number) => {
         const item = data.find(d => Number(d.day) === dayId && Number(d.hour) === hour);
-        if (!item) return "Sin ventas";
-        return `${item.count} pedidos - ${new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(item.revenue)}`;
+        if (!item) return "Sin ventas registradas";
+        return `${item.count} pedidos • ${new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(item.revenue)}`;
     };
 
     const dayLabel = (dayId: number) => days.find(d => d.id === dayId)?.label || "";
 
     if (loading) {
         return (
-            <div className="w-full h-48 bg-gray-50 animate-pulse rounded-2xl flex items-center justify-center">
-                <span className="text-gray-300 font-bold uppercase tracking-widest text-[10px]">Cargando Heatmap...</span>
+            <div className="w-full flex flex-col gap-4">
+                <Skeleton className="w-full h-64 rounded-[2rem]" />
             </div>
         );
     }
 
     return (
-        <div className="flex flex-col gap-4 w-full overflow-x-auto pb-2">
-            <div className="min-w-[800px]">
+        <div className="flex flex-col gap-8 w-full overflow-x-auto pb-4 custom-scrollbar">
+            <div className="min-w-[850px]">
                 {/* Hours Header */}
-                <div className="flex mb-2">
-                    <div className="w-12 flex-shrink-0"></div>
-                    <div className="flex-1 grid grid-cols-24 gap-1">
+                <div className="flex mb-4">
+                    <div className="w-14 flex-shrink-0"></div>
+                    <div className="flex-1 grid grid-cols-24 gap-1.5">
                         {hours.map(hour => (
-                            <div key={hour} className="text-[8px] font-black text-gray-400 text-center">
-                                {hour}
+                            <div key={hour} className="text-[9px] font-black text-muted-foreground/60 text-center uppercase tracking-tighter">
+                                {hour.toString().padStart(2, '0')}
                             </div>
                         ))}
                     </div>
                 </div>
 
                 {/* Grid Rows */}
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-col gap-1.5 text-sans">
                     {days.map((day) => (
-                        <div key={day.id} className="flex items-center gap-2">
-                            <div className="w-10 text-[10px] font-black text-gray-500 uppercase">
+                        <div key={day.id} className="flex items-center gap-4 group/row">
+                            <div className="w-10 text-[10px] font-black text-muted-foreground uppercase tracking-widest group-hover/row:text-accent transition-colors">
                                 {day.label}
                             </div>
-                            <div className="flex-1 grid grid-cols-24 gap-1">
+                            <div className="flex-1 grid grid-cols-24 gap-1.5">
                                 {hours.map((hour) => (
                                     <div key={hour} className="group relative">
                                         <div
                                             style={{ opacity: getOpacity(day.id, hour) }}
-                                            className="w-full aspect-square bg-blue-600 rounded-sm transition-all hover:scale-125 hover:shadow-lg cursor-help z-10"
+                                            className="w-full aspect-square bg-accent rounded-[4px] transition-all hover:scale-150 hover:shadow-2xl hover:shadow-accent/40 cursor-help z-10 hover:z-20 border border-transparent hover:border-white/20"
                                         ></div>
 
-                                        <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 whitespace-nowrap bg-gray-900 text-white text-[10px] font-bold py-2 px-3 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-xl">
-                                            {dayLabel(day.id)} {hour}:00 - {getTooltip(day.id, hour)}
-                                            <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-gray-900"></div>
+                                        <div className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 whitespace-nowrap bg-zinc-900 text-white text-[10px] font-black py-2.5 px-4 rounded-2xl opacity-0 group-hover:opacity-100 transition-all scale-75 group-hover:scale-100 pointer-events-none z-50 shadow-2xl border border-white/10 uppercase tracking-tight">
+                                            <span className="text-accent mr-1">{dayLabel(day.id)} {hour}:00</span> {getTooltip(day.id, hour)}
+                                            <div className="absolute top-full left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-zinc-900"></div>
                                         </div>
                                     </div>
                                 ))}
@@ -84,10 +90,15 @@ export default function HeatmapChart({ data, loading }: HeatmapChartProps) {
                 </div>
             </div>
 
-            <div className="flex items-center justify-between text-[10px] font-black text-gray-400 uppercase tracking-widest px-1 mt-2">
-                <span>Menos Actividad</span>
-                <div className="flex-1 mx-4 h-1 rounded-full bg-gradient-to-r from-blue-600/10 to-blue-600"></div>
-                <span>Pico de Ventas</span>
+            {/* Legend */}
+            <div className="flex flex-col gap-3 max-w-sm ml-14">
+                <div className="flex items-center justify-between text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em]">
+                    <span>Baja Actividad</span>
+                    <span>Pico de Ventas</span>
+                </div>
+                <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                    <div className="h-full w-full bg-gradient-to-r from-accent/10 via-accent/50 to-accent"></div>
+                </div>
             </div>
         </div>
     );

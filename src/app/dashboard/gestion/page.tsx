@@ -17,9 +17,6 @@ export default function GestionPage() {
                     <button className="px-6 py-3 bg-white border border-gray-200 rounded-2xl font-black text-sm text-gray-600 hover:bg-gray-50 transition-all flex items-center gap-2">
                         <span>📥</span> Reporte PDF
                     </button>
-                    <Link href="/dashboard/gestion/costos" className="px-6 py-3 bg-blue-600 text-white rounded-2xl font-black text-sm hover:shadow-lg hover:shadow-blue-100 transition-all flex items-center gap-2">
-                        <span>➕</span> Gestionar Costos
-                    </Link>
                 </div>
             </div>
 

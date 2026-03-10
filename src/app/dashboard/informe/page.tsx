@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { jsPDF } from "jspdf";
+import { FileText, Sparkles, Download, CheckCircle2, AlertCircle, RefreshCw, Loader2 } from "lucide-react";
 
 export default function InformePage() {
     const [isLoading, setIsLoading] = useState(false);
@@ -11,10 +12,9 @@ export default function InformePage() {
     const generateReport = async () => {
         setIsLoading(true);
         setError(null);
-        setStatus("Extrayendo datos de Tienda Nube...");
+        setStatus("Consultando base de inteligencia...");
 
         try {
-            // 1. Fetch report data from our API
             const response = await fetch("/api/tiendanube/report");
             if (!response.ok) {
                 const errData = await response.json();
@@ -22,76 +22,68 @@ export default function InformePage() {
             }
 
             const data = await response.json();
-            setStatus("Generando informe de 10 páginas...");
+            setStatus("Sintetizando informe estratégico...");
 
-            // 2. Initialize jsPDF
             const doc = new jsPDF();
             const pageWidth = doc.internal.pageSize.getWidth();
             const margin = 20;
             const contentWidth = pageWidth - (margin * 2);
 
             // --- Page 1: Cover ---
-            doc.setFillColor(37, 99, 235); // Blue-600
+            doc.setFillColor(88, 65, 216); // Mailkit Violet (#5841D8)
             doc.rect(0, 0, pageWidth, 40, "F");
 
             doc.setTextColor(255, 255, 255);
             doc.setFontSize(24);
             doc.setFont("helvetica", "bold");
-            doc.text("ANALLIZ - INFORME ESTRATÉGICO", margin, 25);
+            doc.text("ANALLIZ - ESTRATEGIA PREMIUM", margin, 25);
 
             doc.setTextColor(50, 50, 50);
             doc.setFontSize(18);
-            doc.text(`Tienda: ${data.storeName}`, margin, 60);
+            doc.text(`Store: ${data.storeName}`, margin, 60);
 
             doc.setFontSize(12);
             doc.setFont("helvetica", "normal");
-            doc.text(`Fecha: ${new Date().toLocaleDateString()}`, margin, 70);
-            doc.text(`Pedidos analizados: ${data.stats.orderCount}`, margin, 80);
-            doc.text(`Ventas totales analizadas: $${data.stats.totalSales}`, margin, 90);
-            doc.text(`Ticket promedio: $${data.stats.avgOrderValue}`, margin, 100);
+            doc.text(`Expedido el: ${new Date().toLocaleDateString()}`, margin, 70);
+            doc.text(`Data points: ${data.stats.orderCount} órdenes`, margin, 80);
+            doc.text(`Volumen analizado: $${data.stats.totalSales}`, margin, 90);
+            doc.text(`Rendimiento AOV: $${data.stats.avgOrderValue}`, margin, 100);
 
-            doc.setDrawColor(200, 200, 200);
+            doc.setDrawColor(220, 220, 220);
             doc.line(margin, 110, pageWidth - margin, 110);
 
             doc.setFontSize(14);
-            doc.text("Bienvenido a tu primer paso hacia el crecimiento exponencial.", margin, 130);
+            doc.text("Este informe contiene insights estratégicos para escalar su rentabilidad.", margin, 130);
 
-            // --- Individual Pages ---
             data.pages.forEach((page: any, index: number) => {
                 doc.addPage();
-
-                // Header for each page
-                doc.setFillColor(243, 244, 246);
+                doc.setFillColor(249, 250, 251);
                 doc.rect(0, 0, pageWidth, 20, "F");
-                doc.setTextColor(75, 85, 99);
+                doc.setTextColor(100, 116, 139);
                 doc.setFontSize(10);
-                doc.text(`INFORME ANALLIZ - PÁGINA ${index + 2}`, margin, 13);
+                doc.text(`ANALLIZ INTELLIGENCE SYSTEM - VOL 1.0 - PÁGINA ${index + 2}`, margin, 13);
 
-                // Title
-                doc.setTextColor(37, 99, 235);
+                doc.setTextColor(88, 65, 216);
                 doc.setFontSize(20);
                 doc.setFont("helvetica", "bold");
                 doc.text(page.title, margin, 40);
 
-                // Content
-                doc.setTextColor(55, 65, 81);
-                doc.setFontSize(12);
+                doc.setTextColor(30, 41, 59);
+                doc.setFontSize(11);
                 doc.setFont("helvetica", "normal");
 
                 const splitText = doc.splitTextToSize(page.content, contentWidth);
                 doc.text(splitText, margin, 60);
 
-                // Mocked "Standard" design elements
-                doc.setDrawColor(229, 231, 235);
-                doc.rect(margin, 120, contentWidth, 80);
-                doc.setTextColor(156, 163, 175);
-                doc.setFontSize(9);
-                doc.text("[ Gráfico / Análisis Visual Proyectado ]", pageWidth / 2, 165, { align: "center" });
+                doc.setDrawColor(241, 245, 249);
+                doc.rect(margin, 140, contentWidth, 50);
+                doc.setTextColor(148, 163, 184);
+                doc.setFontSize(8);
+                doc.text("[ Gráficos IQ Proyectado / Patentado ]", pageWidth / 2, 165, { align: "center" });
             });
 
-            // Save PDF
-            doc.save(`Analliz_Informe_${data.storeName.replace(/\s+/g, '_')}.pdf`);
-            setStatus("¡Informe generado con éxito!");
+            doc.save(`Analliz_Intelligence_${data.storeName.replace(/\s+/g, '_')}.pdf`);
+            setStatus("Informe generado exitosamente.");
 
             setTimeout(() => {
                 setStatus("");
@@ -99,7 +91,6 @@ export default function InformePage() {
             }, 3000);
 
         } catch (err: any) {
-            console.error("Report generation error:", err);
             setError(err.message || "Error inesperado al generar el informe");
             setIsLoading(false);
             setStatus("");
@@ -107,58 +98,122 @@ export default function InformePage() {
     };
 
     return (
-        <section>
-            <h2 className="text-3xl font-extrabold text-gray-900 mb-8">Informe</h2>
+        <section className="flex flex-col gap-12 pb-20">
+            {/* Header */}
+            <div className="flex flex-col gap-2 border-b border-border pb-8">
+                <h2 className="text-4xl font-black text-foreground tracking-tight uppercase leading-none">Generador de Inteligencia</h2>
+                <div className="flex items-center gap-2">
+                    <span className="px-3 py-1 rounded-full bg-accent text-white text-[10px] font-bold uppercase tracking-widest">Premium Reports IQ</span>
+                </div>
+            </div>
 
-            <div className="bg-white rounded-3xl shadow-xl border border-blue-100 p-12 text-center flex flex-col items-center gap-6 max-w-4xl mx-auto">
-                <div className="w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center mb-4">
-                    <svg className="w-10 h-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+                {/* Visual Side */}
+                <div className="relative group">
+                    <div className="absolute inset-0 bg-accent/20 blur-[100px] rounded-full group-hover:bg-accent/30 transition-all duration-1000"></div>
+                    <div className="relative bg-card rounded-[3.5rem] border border-border p-12 shadow-2xl overflow-hidden aspect-square flex items-center justify-center">
+                        <div className="flex flex-col items-center gap-8">
+                            <div className="w-32 h-32 rounded-[2.5rem] bg-accent text-white flex items-center justify-center shadow-2xl shadow-accent/40 animate-pulse">
+                                <FileText className="w-16 h-16" />
+                            </div>
+                            <div className="text-center">
+                                <div className="text-3xl font-black text-foreground uppercase tracking-tight leading-tight">Analliz Intel</div>
+                                <div className="text-xs font-bold text-muted-foreground uppercase tracking-[0.3em] mt-2">V. 2.0.4 Strategy Pack</div>
+                            </div>
+                        </div>
+                        {/* Abstract elements */}
+                        <div className="absolute top-10 left-10 w-2 h-2 rounded-full bg-accent/40"></div>
+                        <div className="absolute bottom-20 right-10 w-4 h-4 rounded-full bg-accent/20"></div>
+                        <div className="absolute top-1/2 left-0 w-20 h-px bg-gradient-to-r from-transparent to-accent/20"></div>
+                    </div>
                 </div>
 
-                <h3 className="text-2xl font-bold text-gray-900">Tu Informe Estratégico</h3>
-                <p className="text-gray-600 text-lg max-w-2xl">
-                    Analizamos tus ventas y productos en tiempo real para generar un informe de 10 páginas con sugerencias accionables para tu negocio.
-                </p>
-
-                {error && (
-                    <div className="bg-red-50 border border-red-200 text-red-700 px-6 py-3 rounded-xl text-sm font-medium">
-                        {error}
-                        {error.includes("Tienda Nube not connected") && (
-                            <a href="/setup/tiendanube" className="ml-2 underline font-bold">Conectar ahora</a>
-                        )}
-                    </div>
-                )}
-
-                <button
-                    onClick={generateReport}
-                    disabled={isLoading}
-                    className={`
-                        min-w-[300px] font-bold py-4 px-10 rounded-full shadow-2xl transition-all transform hover:-translate-y-1 active:scale-95 text-lg
-                        ${isLoading
-                            ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                            : "bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 shadow-blue-200"}
-                    `}
-                >
-                    {isLoading ? (
-                        <div className="flex items-center justify-center gap-3">
-                            <svg className="animate-spin h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            {status}
+                {/* Content Side */}
+                <div className="flex flex-col gap-8">
+                    <div className="flex flex-col gap-4">
+                        <div className="flex items-center gap-3">
+                            <Sparkles className="w-5 h-5 text-accent" />
+                            <span className="text-xs font-black uppercase text-accent tracking-[0.2em]">Data Synthesis Engine</span>
                         </div>
-                    ) : "Generar mi informe detallado gratuito"}
-                </button>
+                        <h3 className="text-5xl font-black text-foreground leading-[1.1] tracking-tighter uppercase italic">
+                            Tu visión de negocio <br />
+                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent to-violet-400">en 10 páginas.</span>
+                        </h3>
+                        <p className="text-lg text-muted-foreground font-bold leading-relaxed max-w-xl">
+                            Analizamos patrones de compra, comportamiento de clientes y rotación de stock para entregarte una hoja de ruta accionable hacia el siguiente nivel de escala.
+                        </p>
+                    </div>
 
-                {status && !isLoading && (
-                    <p className="text-green-600 font-bold animate-bounce">{status}</p>
-                )}
+                    <div className="flex flex-col gap-6 bg-muted/50 p-8 rounded-[2.5rem] border border-border/50">
+                        {error ? (
+                            <div className="flex items-center gap-4 bg-rose-500/10 border border-rose-500/20 text-rose-500 px-6 py-4 rounded-2xl text-sm font-bold">
+                                <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                                <div>
+                                    {error}
+                                    {error.includes("Tienda Nube not connected") && (
+                                        <a href="/setup/tiendanube" className="ml-2 underline font-black">Conectar tienda ahora</a>
+                                    )}
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col gap-4">
+                                <div className="flex items-center gap-3">
+                                    <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                                    <span className="text-xs font-bold text-foreground">Análisis de Pareto Automatizado</span>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                                    <span className="text-xs font-bold text-foreground">Detección de SKUs Estrella</span>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                                    <span className="text-xs font-bold text-foreground">Proyección de Rentabilidad Mensual</span>
+                                </div>
+                            </div>
+                        )}
 
-                <p className="text-gray-400 text-sm italic">
-                    * El informe es gratuito y se genera basado en tus últimos 30 pedidos procesados.
-                </p>
+                        <div className="flex flex-col gap-4">
+                            <button
+                                onClick={generateReport}
+                                disabled={isLoading}
+                                className={`
+                                    relative group w-full font-black py-6 px-10 rounded-full transition-all duration-500 active:scale-[0.98] text-sm uppercase tracking-widest overflow-hidden
+                                    ${isLoading
+                                        ? "bg-muted text-muted-foreground cursor-not-allowed"
+                                        : "bg-accent text-white shadow-[0_20px_50px_rgba(88,65,216,0.3)] hover:shadow-[0_25px_60px_rgba(88,65,216,0.4)] hover:-translate-y-1"}
+                                `}
+                            >
+                                <span className="relative z-10 flex items-center justify-center gap-3">
+                                    {isLoading ? (
+                                        <>
+                                            <Loader2 className="w-5 h-5 animate-spin" />
+                                            {status}
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Download className="w-5 h-5" />
+                                            Generar Informe Estratégico
+                                        </>
+                                    )}
+                                </span>
+                                {!isLoading && (
+                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                                )}
+                            </button>
+
+                            {status && !isLoading && (
+                                <div className="flex items-center justify-center gap-2 text-emerald-500 font-bold text-sm animate-in fade-in slide-in-from-bottom-2">
+                                    <CheckCircle2 className="w-4 h-4" />
+                                    {status}
+                                </div>
+                            )}
+
+                            <p className="text-[10px] text-muted-foreground text-center font-bold uppercase tracking-widest opacity-60">
+                                * Dataset basado en los últimos 30 días de operación.
+                            </p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </section>
     );

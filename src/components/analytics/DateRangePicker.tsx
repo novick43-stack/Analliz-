@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Calendar, ChevronDown, Check } from "lucide-react";
 import { format, subDays, startOfWeek, startOfMonth, startOfDay, endOfDay } from "date-fns";
 import { es } from "date-fns/locale";
@@ -11,8 +11,9 @@ interface DateRangePickerProps {
 
 export default function DateRangePicker({ onRangeChange }: DateRangePickerProps) {
     const [isOpen, setIsOpen] = useState(false);
-    const [label, setLabel] = useState("Esta Semana");
+    const [label, setLabel] = useState("Este Mes");
     const [isCustom, setIsCustom] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
     const [customDates, setCustomDates] = useState({
         from: format(subDays(new Date(), 30), "yyyy-MM-dd"),
         to: format(new Date(), "yyyy-MM-dd")
@@ -24,6 +25,16 @@ export default function DateRangePicker({ onRangeChange }: DateRangePickerProps)
         { name: "Este Mes", id: "month" },
         { name: "Personalizado", id: "custom" },
     ];
+
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
 
     const handleSelect = (range: { name: string, id: string }) => {
         const now = new Date();
@@ -66,70 +77,68 @@ export default function DateRangePicker({ onRangeChange }: DateRangePickerProps)
 
     useEffect(() => {
         const now = new Date();
-        const from = startOfWeek(now, { weekStartsOn: 1 });
+        const from = startOfMonth(now);
         const to = endOfDay(now);
         onRangeChange(from.toISOString(), to.toISOString());
     }, [onRangeChange]);
 
     return (
-        <div className="relative">
+        <div className="relative" ref={dropdownRef}>
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="flex items-center gap-3 px-6 py-3 bg-white border-2 border-gray-100 rounded-2xl font-black text-gray-900 shadow-sm hover:border-blue-200 transition-all text-sm uppercase tracking-widest"
+                className="flex items-center gap-3 px-5 py-3.5 bg-card border border-border rounded-2xl font-black text-foreground shadow-sm hover:border-accent/40 transition-all text-[11px] uppercase tracking-widest active:scale-95 group"
             >
-                <Calendar className="w-5 h-5 text-blue-600" />
+                <Calendar className="w-4 h-4 text-accent group-hover:scale-110 transition-transform" />
                 <span>{label}</span>
-                <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
             </button>
 
             {isOpen && (
-                <div className="absolute top-full mt-3 right-0 w-72 bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden z-20 animate-in fade-in zoom-in-95 duration-200">
-                    <div className="p-3">
-                        <div className="grid gap-1 mb-2">
-                            {ranges.map((range) => (
-                                <button
-                                    key={range.id}
-                                    onClick={() => handleSelect(range)}
-                                    className={`w-full text-left px-5 py-3 rounded-xl transition-colors font-bold text-sm flex items-center justify-between ${label === range.name && !isCustom ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50'
-                                        }`}
-                                >
-                                    {range.name}
-                                    {label === range.name && !isCustom && <Check className="w-4 h-4" />}
-                                </button>
-                            ))}
-                        </div>
-
-                        {isCustom && (
-                            <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 space-y-4 animate-in slide-in-from-top-2 duration-300">
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Desde</label>
-                                        <input
-                                            type="date"
-                                            value={customDates.from}
-                                            onChange={(e) => setCustomDates({ ...customDates, from: e.target.value })}
-                                            className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm font-bold text-gray-700 focus:outline-none focus:border-blue-500"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Hasta</label>
-                                        <input
-                                            type="date"
-                                            value={customDates.to}
-                                            onChange={(e) => setCustomDates({ ...customDates, to: e.target.value })}
-                                            className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm font-bold text-gray-700 focus:outline-none focus:border-blue-500"
-                                        />
-                                    </div>
-                                </div>
-                                <button
-                                    onClick={handleApplyCustom}
-                                    className="w-full py-3 bg-blue-600 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-blue-100 hover:bg-blue-700 transition-colors"
-                                >
-                                    Aplicar Filtro
-                                </button>
-                            </div>
-                        )}
+                <div className="absolute top-[120%] right-0 w-72 bg-card rounded-[2rem] shadow-2xl border border-border p-3 z-50 animate-in fade-in slide-in-from-top-4 duration-300">
+                    <div className="grid gap-1 mb-2">
+                        {ranges.map((range) => (
+                            <button
+                                key={range.id}
+                                onClick={() => handleSelect(range)}
+                                className={`w-full text-left px-5 py-3 rounded-xl transition-all font-bold text-xs flex items-center justify-between ${label === range.name && !isCustom ? 'bg-accent/10 text-accent' : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                                    }`}
+                            >
+                                {range.name}
+                                {label === range.name && !isCustom && <Check className="w-4 h-4" />}
+                            </button>
+                        ))}
                     </div>
+
+                    {isCustom && (
+                        <div className="p-4 mt-2 bg-muted/50 rounded-2xl border border-border/50 space-y-4 animate-in fade-in zoom-in-95 duration-300">
+                            <div className="space-y-4">
+                                <div className="flex flex-col gap-1.5">
+                                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Desde</label>
+                                    <input
+                                        type="date"
+                                        value={customDates.from}
+                                        onChange={(e) => setCustomDates({ ...customDates, from: e.target.value })}
+                                        className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-xs font-bold text-foreground focus:outline-none focus:border-accent/50 focus:ring-4 focus:ring-accent/5 transition-all"
+                                    />
+                                </div>
+                                <div className="flex flex-col gap-1.5">
+                                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Hasta</label>
+                                    <input
+                                        type="date"
+                                        value={customDates.to}
+                                        onChange={(e) => setCustomDates({ ...customDates, to: e.target.value })}
+                                        className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-xs font-bold text-foreground focus:outline-none focus:border-accent/50 focus:ring-4 focus:ring-accent/5 transition-all"
+                                    />
+                                </div>
+                            </div>
+                            <button
+                                onClick={handleApplyCustom}
+                                className="w-full py-3.5 bg-accent text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-accent/20 hover:bg-accent/90 hover:-translate-y-0.5 transition-all active:scale-95"
+                            >
+                                Aplicar Período
+                            </button>
+                        </div>
+                    )}
                 </div>
             )}
         </div>
